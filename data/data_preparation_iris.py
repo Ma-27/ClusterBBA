@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.datasets import load_iris
 from sklearn.metrics import accuracy_score
+from tqdm import tqdm
 
 
 # -------------------------- 工具函数 -------------------------- #
@@ -24,7 +25,9 @@ def interval_distance(a, b):
 
 
 def similarity(a, b, alpha=5.0):
-    # 空区间检测
+    """
+    当 b 为“空区间”时（b[0]>b[1]），返回 0
+    """
     if b[0] > b[1]:
         return 0.0
     """相似度 s = 1 / (1 + α·D)"""
@@ -125,14 +128,14 @@ def show_dataset(X, y, iris):
 def show_train_test(X_train, y_train, X_test, y_test, iris):
     iris_feature_names = iris.feature_names
     iris_target_names = iris.target_names
-
+    #
     df_train = pd.DataFrame(X_train, columns=iris_feature_names)
     df_train['target'] = [iris_target_names[i] for i in y_train]
     print("\n训练集（共 %d 个样本）:" % len(df_train))
     print(df_train.head(5))
     print("...")
     print(df_train.tail(5))
-
+    #
     df_test = pd.DataFrame(X_test, columns=iris_feature_names)
     df_test['target'] = [iris_target_names[i] for i in y_test]
     print("\n测试集（共 %d 个样本）:" % len(df_test))
@@ -156,7 +159,6 @@ def test_interval_generation(model, iris):
         print(f"\n{iris.target_names[cls]} ->")
         print(pd.DataFrame(model.intervals[key], columns=['min', 'max'],
                            index=iris.feature_names))
-
     print("\n=== 组合类交叉区间 ===")
     for hyp in model.intervals:
         if len(hyp) > 1:
@@ -207,7 +209,7 @@ def experiment(random_state=7, alpha=5.0):
     # 4. 针对每个测试样本生成 4 个属性 BPA 并组合
     y_pred = []
     hypo_singletons = {(c,): iris.target_names[c] for c in model.classes}
-    for x in X_test:
+    for x in tqdm(X_test, desc="测试样本", ncols=80):
         # 4.1 单属性 BPA 列表
         attr_bpas = [model.attribute_bpa(x, k) for k in range(X.shape[1])]
 
