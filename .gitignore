@@ -1,0 +1,38 @@
+# Python 缓存文件和编译输出
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# 虚拟环境目录（如果用venv）
+venv/
+.env/
+
+# 数据文件（如 CSV, Excel 等）
+data/*.csv
+data/*.xlsx
+
+# 自动生成的图像、结果文件（可视化输出）
+figures/*.png
+figures/*.jpg
+figures/*.pdf
+figures/*.svg
+
+# PyCharm 项目配置（通常应忽略除非团队约定共享）
+.idea/
+!.idea/inspectionProfiles/
+!.idea/codeStyles/
+
+# 日志文件
+*.log
+
+# 临时测试脚本或中间文件（建议开发中清理）
+*.tmp
+*.bak
+*~
+
+# Jupyter Notebook checkpoints（如你用到 notebook）
+.ipynb_checkpoints/
