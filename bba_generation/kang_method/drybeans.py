@@ -36,7 +36,7 @@ def download_dry_beans(csv_output_path='Dry_Beans_Dataset.csv'):
         print(f"成功解压：{xlsx_file}")
 
     # 读取 Excel 并保存为 CSV
-    df = pd.read_excel(os.path.join('DryBeans', xlsx_file))
+    df = pd.read_excel(os.path.join('../DryBeans', xlsx_file))
     df.to_csv(csv_output_path, index=False)
     print(f"CSV 文件已保存为：{csv_output_path}")
     return df
@@ -296,7 +296,7 @@ if __name__ == '__main__':
     print(df.head())
 
     acc, y_true, y_hat = experiment(
-        csv_path='Dry_Beans_Dataset.csv',
+        csv_path='../Dry_Beans_Dataset.csv',
         random_state=42,
         alpha=5.0,
         train_ratio=0.4
