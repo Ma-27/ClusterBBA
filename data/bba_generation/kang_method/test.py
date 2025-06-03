@@ -12,7 +12,7 @@ BETA = 5  # 相似度支持系数 β  (式 20)
 TOP_K = 5  # “取 5”——只保留 Fisher score 最高的 5 个特征
 TRAIN_RATIO = 0.1  # 训练集占比，可按论文 1 调整 0.1~0.9
 CLASSES = ['Seker', 'Barbunya', 'Cali', 'Dermason']  # 同论文 1 取 4 类
-DATA_PATH = Path('../Dry_Beans_Dataset.xlsx')  # UCI 原始文件
+DATA_PATH = Path('../../DryBeanDataset/Dry_Beans_Dataset.xlsx')  # UCI 原始文件
 
 
 # ------------------ 工具函数 ------------------

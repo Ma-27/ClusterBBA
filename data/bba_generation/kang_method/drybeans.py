@@ -296,7 +296,7 @@ if __name__ == '__main__':
     print(df.head())
 
     acc, y_true, y_hat = experiment(
-        csv_path='../Dry_Beans_Dataset.csv',
+        csv_path='../../DryBeanDataset/Dry_Beans_Dataset.csv',
         random_state=42,
         alpha=5.0,
         train_ratio=0.4
