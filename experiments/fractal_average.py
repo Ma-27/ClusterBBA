@@ -14,9 +14,9 @@ BBA Fractal Operator
 在 data/examples 文件夹中放置了 CSV 文件，例如 Example_3_3.csv。
 
 脚本可直接运行，无需命令行参数时默认使用 h=1（注意要转到目录 cd experiments）：
-$ python average_fractal.py             # 等价于 h=1
+$ python fractal_average.py             # 等价于 h=1
 或指定阶数 h：
-$ python average_fractal.py 3          # h = 3
+$ python fractal_average.py 3          # h = 3
 
 """
 
@@ -103,14 +103,14 @@ if __name__ == '__main__':
         if h < 0:
             raise ValueError
     except ValueError:
-        print("参数 h 必须是不小于 0 的整数，示例：python average_fractal.py 2 或 python average_fractal.py")
+        print("参数 h 必须是不小于 0 的整数，示例：python fractal_average.py 2 或 python fractal_average.py")
         sys.exit(1)
 
     # 定位 CSV 文件目录
     base_dir = os.path.dirname(os.path.abspath(__file__))
     csv_dir = os.path.join(base_dir, '..', 'data', 'examples')
     # fixme 加载数据集，可按需修改
-    csv_file = 'Example_3_3.csv'
+    csv_file = 'Example_3_3_1.csv'
     csv_path = os.path.normpath(os.path.join(csv_dir, csv_file))
     if not os.path.isfile(csv_path):
         print(f"找不到 CSV 文件: {csv_path}")

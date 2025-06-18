@@ -10,9 +10,9 @@ BBA Fractal Operator
 在 data/examples 文件夹中放置 CSV 文件，例如 Example_3_3.csv。
 
 脚本可直接运行，无需命令行参数时默认使用 h=2（注意要转到目录 cd experiments）：
-$ python HOBPA_fractal.py             # 等价于 h=2
+$ python fractal_hobpa.py             # 等价于 h=2
 或指定阶数 h：
-$ python HOBPA_fractal.py 3          # h = 3
+$ python fractal_hobpa.py 3          # h = 3
 
 程序将在控制台输出分型后的 BBA 表格。
 
@@ -120,7 +120,7 @@ if __name__ == '__main__':
         if h < 0:
             raise ValueError
     except ValueError:
-        print("参数 h 必须为非负整数，示例：python HOBPA_fractal.py 2")
+        print("参数 h 必须为非负整数，示例：python fractal_hobpa.py 2")
         sys.exit(1)
 
     # 定位 CSV 文件目录
