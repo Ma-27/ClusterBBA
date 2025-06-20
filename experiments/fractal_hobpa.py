@@ -43,6 +43,7 @@ import pandas as pd
 
 # ------------------------------ 工具函数 ------------------------------ #
 
+# 解析列名，去除花括号并按“∪”分割生成元素集，如 {A ∪ B} -> frozenset({'A', 'B'})
 def parse_focal_set(cell: str) -> FrozenSet[str]:
     # 解析列名，去除花括号并按“∪”分割生成元素集
     if cell.startswith("{") and cell.endswith("}"):
@@ -51,30 +52,33 @@ def parse_focal_set(cell: str) -> FrozenSet[str]:
     return frozenset(items)
 
 
+# 生成 s 的所有 *非空* 子集（包括自身）。
 def powerset(s: FrozenSet[str]):
-    """返回所有非空子集，用于分裂时生成子焦元"""
     items = list(s)
     for r in range(1, len(items) + 1):
         for combo in itertools.combinations(items, r):
             yield frozenset(combo)
 
-# ------------------------------ 分型核心 ------------------------------ #
 
+# ------------------------------ 分形核心 ------------------------------ #
+
+# 执行一次 1 阶分型，按论文公式分配质量
 def split_once(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]:
-    """执行一次 *h* 阶分型，按论文公式分配质量"""
     new_bba: Dict[FrozenSet[str], float] = {}
     for Aj, mass in bba.items():
+        # 单元素焦元或空集按原质量保留或均分到子集
         if len(Aj) == 0:
             # 空集质量不参与分型，直接保留
             new_bba[Aj] = new_bba.get(Aj, 0.0) + mass
             continue
-        denom = (h + 1) ** len(Aj) - h ** len(Aj)
+        denom = (h + 1) ** len(Aj) - h ** len(Aj)  # 论文中公式分母
         for Ai in powerset(Aj):
             factor = h ** (len(Aj) - len(Ai)) / denom
             new_bba[Ai] = new_bba.get(Ai, 0.0) + mass * factor
     return new_bba
 
 
+# 执行 h 阶均等分型（迭代 h 次 split_once）。
 def higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]:
     # 如果 h=0，直接返回原始 BBA；h=1 时可直接调用一次分裂；更高阶通过迭代实现
     if h == 0:
@@ -88,26 +92,30 @@ def higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet
 
 # ------------------------------ I/O 与展示 ------------------------------ #
 
+# 从数据集中加载BBA
 def load_bbas(df: pd.DataFrame):
-    focal_cols = [c for c in df.columns if c != "BBA"]
+    # 提取列名（跳过 'BBA' 列）作为焦元表示
+    focal_cols = [c for c in df.columns if c != "BBA"]  # 焦元列名
     bbas = []  # List[Tuple[name, bba_dict]]
+    # 将每行转换为 (名称, bba_dict) 元组列表
     for _, row in df.iterrows():
         bba: Dict[FrozenSet[str], float] = {}
         for col in focal_cols:
+            # 将列名转焦元集合，行值转质量
             bba[parse_focal_set(col)] = float(row[col])
-        bbas.append((str(row.get("BBA", "m")), bba))
+        bbas.append((str(row.get("BBA", "m")), bba))  # 存储名称与 BBA
     return bbas, focal_cols
 
 
+# 将 FrozenSet 集合格式化为 BBA 字符串，如 frozenset({'A', 'B'}) -> {A ∪ B}
 def format_set(s: FrozenSet[str]) -> str:
-    """将集合格式化回字符串，如 {'A','B'} -> {A ∪ B}"""
     if not s:
         return "∅"
     return "{" + " ∪ ".join(sorted(s)) + "}"
 
 
+# 按照指定的焦元顺序，将 bba_dict 转为数值列表，用于构造 DataFrame 行
 def bba_to_series(bba: Dict[FrozenSet[str], float], focal_order: List[str]):
-    # 按列顺序生成数值列表，便于 DataFrame 输出
     data = {format_set(k): v for k, v in bba.items()}
     return [data.get(col, 0.0) for col in focal_order]
 
