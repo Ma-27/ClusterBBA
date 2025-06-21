@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # 读取 h，允许 h=0，禁止负数
     try:
         # todo 分形深度 可按需修改
-        seg_depth = 3
+        seg_depth = 4
         h = int(sys.argv[1]) if len(sys.argv) > 1 else seg_depth
         if h < 0:
             raise ValueError
