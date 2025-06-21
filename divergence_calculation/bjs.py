@@ -117,7 +117,7 @@ def plot_heatmap(
 # 脚本执行入口
 if __name__ == '__main__':
     # 处理命令行参数：CSV 文件名 todo 可以在这里修改路径
-    path = 'Example_3_3_3.csv'
+    path = 'Example_0.csv'
     csv_name = sys.argv[1] if len(sys.argv) > 1 else path
 
     # 构造 CSV 路径
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     res_dir = os.path.join(base_dir, '..', 'experiments_result')
     os.makedirs(res_dir, exist_ok=True)
     csv_out = f"bjs_{os.path.splitext(csv_name)[0]}.csv"
-    dist_df.to_csv(os.path.join(res_dir, csv_out), float_format='%.4f')
+    dist_df.to_csv(os.path.join(res_dir, csv_out), float_format='%.4f', index_label='BBA')
     print(f"结果 CSV: {res_dir}/{csv_out}")
 
     # ---------- 可视化热力图 ---------- #

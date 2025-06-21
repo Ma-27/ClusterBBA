@@ -6,6 +6,9 @@ Average Fractal BBA Calculator
 在 experiments_result 目录中，针对指定的单个 BBA 文件，
 对齐焦元后计算该文件中所有已分形行的质量（Mass）平均值，并在控制台输出结果。
 可通过修改 `target_file` 变量来指定需要平均的 CSV 文件名。
+
+注意：只可用作计算 BBA 平均值！
+
 """
 import os
 import sys
@@ -59,7 +62,7 @@ def bba_to_series(bba: Dict[FrozenSet[str], float], order: List[str]) -> List[fl
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # 用户在此处指定需要计算平均的 CSV 文件名
-    target_file = 'fractal_Example_3_3_3_h3.csv'  # todo: 替换为所需文件名
+    target_file = 'fractal_Example_2_3_h1.csv'  # todo: 替换为所需文件名
 
     # 构造文件路径
     base_dir = os.path.dirname(os.path.abspath(__file__))

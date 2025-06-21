@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # 读取 h，允许 h=0，禁止负数
     try:
         # todo 分形深度 可按需修改
-        seg_depth = 4
+        seg_depth = 3
         h = int(sys.argv[1]) if len(sys.argv) > 1 else seg_depth
         if h < 0:
             raise ValueError
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     base_dir = os.path.dirname(os.path.abspath(__file__))
     csv_dir = os.path.join(base_dir, '..', 'data', 'examples')
     # todo 分形的 BBA 数据位置，可按需修改
-    csv_file = 'Example_3_3_3.csv'
+    csv_file = 'Example_3_3_2.csv'
     csv_path = os.path.normpath(os.path.join(csv_dir, csv_file))
     if not os.path.isfile(csv_path):
         print(f"找不到 CSV 文件: {csv_path}")
