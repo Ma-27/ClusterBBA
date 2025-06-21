@@ -116,8 +116,9 @@ def plot_heatmap(
 
 # 脚本执行入口
 if __name__ == '__main__':
-    # 处理命令行参数：CSV 文件名
-    csv_name = sys.argv[1] if len(sys.argv) > 1 else 'Example_3_3.csv'
+    # 处理命令行参数：CSV 文件名 todo 可以在这里修改路径
+    path = 'Example_3_3_3.csv'
+    csv_name = sys.argv[1] if len(sys.argv) > 1 else path
 
     # 构造 CSV 路径
     base_dir = os.path.dirname(os.path.abspath(__file__))
