@@ -59,7 +59,7 @@ def bba_to_series(bba: Dict[FrozenSet[str], float], order: List[str]) -> List[fl
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # 用户在此处指定需要计算平均的 CSV 文件名
-    target_file = 'fractal_Example_3_3_2_h1.csv'  # todo: 替换为所需文件名
+    target_file = 'fractal_Example_3_3_3_h3.csv'  # todo: 替换为所需文件名
 
     # 构造文件路径
     base_dir = os.path.dirname(os.path.abspath(__file__))

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-BBA Fractal Operator
+BBA Fractal Operator 计算一组（或者一个BBA）的 seg_depth 阶分形
 ====================
 根据高阶 BBA 分型（Higher‑Order Basic Probability Assignment, HOBPA）公式 (Huang & Xiao, 2023)，
 实现对输入的基本概率分配（BBA）进行 *h* 阶分型，并在输出时保留四位小数。
@@ -122,9 +122,11 @@ def bba_to_series(bba: Dict[FrozenSet[str], float], focal_order: List[str]):
 
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
-    # 默认 h=2，可通过第一个参数指定阶数；不支持负数
+    # 读取 h，允许 h=0，禁止负数
     try:
-        h = int(sys.argv[1]) if len(sys.argv) > 1 else 2  # fixme h 可按需修改
+        # todo 分形深度 可按需修改
+        seg_depth = 1
+        h = int(sys.argv[1]) if len(sys.argv) > 1 else seg_depth
         if h < 0:
             raise ValueError
     except ValueError:
@@ -134,7 +136,7 @@ if __name__ == '__main__':
     # 定位 CSV 文件目录
     base_dir = os.path.dirname(os.path.abspath(__file__))
     csv_dir = os.path.join(base_dir, '..', 'data', 'examples')
-    # fixme 加载数据集，可按需修改
+    # todo 分形的 BBA 数据位置，可按需修改
     csv_file = 'Example_2_3.csv'
     csv_path = os.path.normpath(os.path.join(csv_dir, csv_file))
     if not os.path.isfile(csv_path):

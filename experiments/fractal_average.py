@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-BBA Fractal Operator
+BBA Fractal Operator 计算一组（或者一个BBA）的 seg_depth 阶分形
 ====================
 实现对输入的基本概率分配（BBA）进行 **均等分形**：父焦元 A_j 的质量 m(A_j) 被平均分配到其所有非空子集 A_i 上，
 每个子集获得的系数均为 1 / (2^{|A_j|} - 1)。当 |A_j| = 1 时，分母为 1，质量保持不变。
@@ -106,7 +106,9 @@ def bba_to_series(bba: Dict[FrozenSet[str], float], focal_order: List[str]):
 if __name__ == '__main__':
     # 读取 h，允许 h=0，禁止负数
     try:
-        h = int(sys.argv[1]) if len(sys.argv) > 1 else 2  # fixme h 可按需修改
+        # todo 分形深度 可按需修改
+        seg_depth = 3
+        h = int(sys.argv[1]) if len(sys.argv) > 1 else seg_depth
         if h < 0:
             raise ValueError
     except ValueError:
@@ -116,7 +118,8 @@ if __name__ == '__main__':
     # 定位 CSV 数据
     base_dir = os.path.dirname(os.path.abspath(__file__))
     csv_dir = os.path.join(base_dir, '..', 'data', 'examples')
-    csv_file = 'Example_3_3_2.csv'
+    # todo 分形的 BBA 数据位置，可按需修改
+    csv_file = 'Example_3_3_3.csv'
     csv_path = os.path.normpath(os.path.join(csv_dir, csv_file))
     if not os.path.isfile(csv_path):
         print(f"找不到 CSV 文件: {csv_path}")
