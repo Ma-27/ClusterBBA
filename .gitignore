@@ -36,3 +36,8 @@ figures/*.svg
 
 # Jupyter Notebook checkpoints（如你用到 notebook）
 .ipynb_checkpoints/
+
+# 实验目录确保跟踪
+!experiments/
+!experiments_result/
+
