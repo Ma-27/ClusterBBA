@@ -19,7 +19,7 @@ import sys
 
 import pandas as pd
 
-from divergence_calculation.bjs import (
+from divergence_calculation.ccjs import (
     load_bbas,
     distance_matrix,
     save_csv,
