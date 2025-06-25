@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_divergence.py
+test_bjs_divergence.py
 
 复现 bjs.py 主函数流程，使用 divergence_calculation 包外导入：
 - 处理命令行参数，指定 CSV 文件名
@@ -11,7 +11,7 @@ test_divergence.py
 - 绘制并保存热力图
 
 在项目根目录运行：
-    python test_divergence.py [Example_3_3.csv]
+    python test_bjs_divergence.py [Example_3_3.csv]
 """
 
 import os
@@ -19,16 +19,15 @@ import sys
 
 import pandas as pd
 
-from divergence_calculation.ccjs import (
+from divergence_calculation.bjs import (
     load_bbas,
-    distance_matrix,
-    save_csv,
-    plot_heatmap
+    metric_matrix,
+    save_csv
 )
 
 if __name__ == '__main__':
     # todo 默认示例文件名
-    default_name = 'Example_0_1.csv'
+    default_name = 'Example_0_4.csv'
     # 支持通过命令行参数指定 CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
@@ -47,16 +46,18 @@ if __name__ == '__main__':
     bbas, _ = load_bbas(df)
 
     # 计算 BJS 距离矩阵
-    dist_df = distance_matrix(bbas)
+    met_df = metric_matrix(bbas)
 
     # 控制台输出距离矩阵
     print("\n----- BJS 距离矩阵 -----")
-    print(dist_df.to_string())
+    print(met_df.to_string())
 
     # 保存到 CSV（experiments_result 目录）
-    save_csv(dist_df, default_name=csv_name)
-    print(f"结果 CSV: experiments_result/bjs_{os.path.splitext(csv_name)[0]}.csv")
+    save_csv(met_df, default_name=csv_name)
+    print(f"结果 CSV: experiments_result/bjs_{"metric"}_{os.path.splitext(csv_name)[0]}.csv")
 
     # 绘制并保存热力图
-    plot_heatmap(dist_df, default_name=csv_name)
-    print(f"可视化图已保存到: experiments_result/bjs_{os.path.splitext(csv_name)[0]}.png")
+    # plot_heatmap(dist_df, default_name=csv_name)
+    # print(f"可视化图已保存到: experiments_result/bjs_{"metric"}_{os.path.splitext(csv_name)[0]}.png")
+
+

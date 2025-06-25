@@ -2,7 +2,7 @@
 """
 test_ccjs_divergence.py
 
-使用 divergence_calculation.ccjs 包计算 CCJS 距离矩阵，支持传入超参数 n
+使用 divergence_calculation.ccjs 包计算 CCJS 距离矩阵，支持传入超参数 n，并验证度量性质
 """
 
 import os
@@ -12,14 +12,13 @@ import pandas as pd
 
 from divergence_calculation.ccjs import (
     load_bbas,
-    distance_matrix,
-    save_csv,
-    plot_heatmap
+    metric_matrix,
+    save_csv
 )
 
 if __name__ == '__main__':
-    # todo 默认示例文件名
-    default_name = 'Example_0_3.csv'
+    # todo 默认示例文件名，可根据实际情况修改
+    default_name = 'Example_0_2.csv'
     # 支持通过命令行参数指定 CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
     # 支持通过命令行参数指定超参数 n，默认为 1
@@ -49,19 +48,21 @@ if __name__ == '__main__':
         'm_F1_h3': 4,
         'm_F2_h3': 1,
         'm_F3_h3': 1,
+        'm_F4_h3': 1,
     }
 
     # 计算 CCJS 距离矩阵
-    dist_df = distance_matrix(bbas, sizes)
+    met_df = metric_matrix(bbas, sizes)
 
     # 控制台输出距离矩阵
     print("\n----- CCJS 距离矩阵 -----")
-    print(dist_df.to_string())
+    print(met_df.to_string())
 
     # 保存到 CSV（experiments_result 目录）
-    save_csv(dist_df, default_name=csv_name)
-    print(f"结果 CSV: experiments_result/ccjs_{os.path.splitext(csv_name)[0]}.csv")
+    save_csv(met_df, default_name=csv_name)
+    print(f"结果 CSV: experiments_result/ccjs_{"metric"}_{os.path.splitext(csv_name)[0]}.csv")
 
     # 绘制并保存热力图
-    plot_heatmap(dist_df, default_name=csv_name)
-    print(f"可视化图已保存到: experiments_result/ccjs_{os.path.splitext(csv_name)[0]}.png")
+    # plot_heatmap(met_df, default_name=csv_name)
+    # print(f"可视化图已保存到: experiments_result/ccjs_{"metric"}_{os.path.splitext(csv_name)[0]}.png")
+
