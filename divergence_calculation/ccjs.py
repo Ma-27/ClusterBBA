@@ -148,7 +148,7 @@ def plot_heatmap(
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # todo 默认示例文件，需要自定义
-    default_name = 'Example_0_3.csv'
+    default_name = 'Example_0_1.csv'
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
