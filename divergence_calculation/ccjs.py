@@ -82,7 +82,7 @@ def ccjs_divergence(
         p = m_p.get(A, 0.0) or EPS
         q = m_q.get(A, 0.0) or EPS
         m_mix = w_p * p + w_q * q
-        div += w_p * p * math.log(p / m_mix, 2) + w_q * q * math.log(q / m_mix, 2)
+        div += 0.5 * p * math.log(p / m_mix, 2) + 0.5 * q * math.log(q / m_mix, 2)
     # CCJS 的取值范围应在 [0, 1]
     return max(0.0, min(div, 1.0))
 

@@ -19,7 +19,7 @@ from divergence_calculation.ccjs import (
 
 if __name__ == '__main__':
     # todo 默认示例文件名
-    default_name = 'Example_0_1.csv'
+    default_name = 'Example_0_3.csv'
     # 支持通过命令行参数指定 CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
     # 支持通过命令行参数指定超参数 n，默认为 1
