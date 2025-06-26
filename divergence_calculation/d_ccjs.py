@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-CCJS Divergence & Metric Calculator Module
-==========================================
-提供 Cluster‑to‑Cluster Jensen–Shannon divergence (CCJS) 及其对应度量 (Metric) 的可导入接口。
+D_CCJS Divergence & Metric Calculator Module
+============================================
+提供 Cluster‑to‑Cluster Jensen–Shannon 散度 D_CCJS 及其对应度量 (Metric) 的可导入接口。
 
 接口：
 - parse_focal_set(cell) -> FrozenSet[str]
 - load_bbas(df) -> (List[(name, bba_dict)], List[focal_col])
-- ccjs_divergence(m_p, m_q, n_p, n_q) -> float
-- ccjs_metric(m_p, m_q, n_p, n_q) -> float
+- d_ccjs_divergence(m_p, m_q, n_p, n_q) -> float
+- d_ccjs_metric(m_p, m_q, n_p, n_q) -> float
 - divergence_matrix(bbas, sizes) -> pd.DataFrame
 - metric_matrix(bbas, sizes) -> pd.DataFrame
 - save_csv(dist_df, out_path=None, default_name='Example_0_1.csv', label='divergence') -> None
@@ -16,11 +16,11 @@ CCJS Divergence & Metric Calculator Module
 
 脚本用法：
 ```bash
-$ python ccjs.py [Example_0_1.csv]
+$ python d_ccjs.py [Example_0_1.csv]
 ```
 示例：
 ```python
-from ccjs import load_bbas, divergence_matrix, metric_matrix, save_csv, plot_heatmap
+from d_ccjs import load_bbas, divergence_matrix, metric_matrix, save_csv, plot_heatmap
 import pandas as pd
 
 df = pd.read_csv('data/examples/Example_0_1.csv')
@@ -32,8 +32,8 @@ met_df = metric_matrix(bbas, sizes)
 print(div_df, met_df)
 save_csv(div_df, default_name='Example_0_1.csv', label='divergence')
 save_csv(met_df, default_name='Example_0_1.csv', label='metric')
-plot_heatmap(div_df, default_name='Example_0_1.csv', title='CCJS Divergence Heatmap', label='divergence')
-plot_heatmap(met_df, default_name='Example_0_1.csv', title='CCJS Metric Heatmap', label='metric')
+plot_heatmap(div_df, default_name='Example_0_1.csv', title='D_CCJS Divergence Heatmap', label='divergence')
+plot_heatmap(met_df, default_name='Example_0_1.csv', title='D_CCJS Metric Heatmap', label='metric')
 ```
 """
 
@@ -68,8 +68,8 @@ def load_bbas(df: pd.DataFrame) -> Tuple[List[Tuple[str, Dict[FrozenSet[str], fl
     return bbas, focal_cols
 
 
-# 计算两簇之间的 CCJS divergence（新定义）
-def ccjs_divergence(
+# 计算两簇之间的 D_CCJS divergence（新定义）
+def d_ccjs_divergence(
         m_p: Dict[FrozenSet[str], float],
         m_q: Dict[FrozenSet[str], float],
         n_p: int,
@@ -95,25 +95,25 @@ def ccjs_divergence(
 
 
 # fixme 对应度量 = 根号(divergence),考虑其他构造度量的方式
-# 构造度量 (Metric)：参考 RB 论文，将 CCJS 散度转换为度量
+# 目前的构造度量 (Metric)：参考 RB 论文，将 CCJS 散度转换为度量
 # RB_XY = sqrt(|D(XX) + D(YY) - 2 D(XY)| / 2)
-def ccjs_metric(
+def d_ccjs_metric(
         m_p: Dict[FrozenSet[str], float],
         m_q: Dict[FrozenSet[str], float],
         n_p: int,
         n_q: int
 ) -> float:
     # 第一种构造方式，直接取根号 CCJS
-    # return math.sqrt(ccjs_divergence(m_p, m_q, n_p, n_q))
+    # return math.sqrt(d_ccjs_divergence(m_p, m_q, n_p, n_q))
 
     # 第二种方式，参考 RB 论文构造度量
-    d_pp = ccjs_divergence(m_p, m_p, n_p, n_p)
-    d_qq = ccjs_divergence(m_q, m_q, n_q, n_q)
-    d_pq = ccjs_divergence(m_p, m_q, n_p, n_q)
+    d_pp = d_ccjs_divergence(m_p, m_p, n_p, n_p)
+    d_qq = d_ccjs_divergence(m_q, m_q, n_q, n_q)
+    d_pq = d_ccjs_divergence(m_p, m_q, n_p, n_q)
     return math.sqrt(abs(d_pp + d_qq - 2 * d_pq) / 2)
 
 
-# 生成对称 CCJS divergence 矩阵
+# 生成对称 D_CCJS divergence 矩阵
 def divergence_matrix(
         bbas: List[Tuple[str, Dict[FrozenSet[str], float]]],
         sizes: Dict[str, int]
@@ -123,11 +123,11 @@ def divergence_matrix(
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            mat[i][j] = mat[j][i] = ccjs_divergence(bbas[i][1], bbas[j][1], sizes[names[i]], sizes[names[j]])
+            mat[i][j] = mat[j][i] = d_ccjs_divergence(bbas[i][1], bbas[j][1], sizes[names[i]], sizes[names[j]])
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 
-# 生成 CCJS metric 矩阵
+# 生成 D_CCJS metric 矩阵
 def metric_matrix(
         bbas: List[Tuple[str, Dict[FrozenSet[str], float]]],
         sizes: Dict[str, int]
@@ -137,7 +137,7 @@ def metric_matrix(
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            mat[i][j] = mat[j][i] = ccjs_metric(bbas[i][1], bbas[j][1], sizes[names[i]], sizes[names[j]])
+            mat[i][j] = mat[j][i] = d_ccjs_metric(bbas[i][1], bbas[j][1], sizes[names[i]], sizes[names[j]])
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 
@@ -154,7 +154,7 @@ def save_csv(
         base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         res = os.path.join(base, 'experiments_result')
         os.makedirs(res, exist_ok=True)
-        fname = f"ccjs_{label}_{os.path.splitext(default_name)[0]}.csv"
+        fname = f"d_ccjs_{label}_{os.path.splitext(default_name)[0]}.csv"
         out_path = os.path.join(res, fname)
     dist_df.to_csv(out_path, float_format='%.4f', index_label=index_label)
 
@@ -168,12 +168,12 @@ def plot_heatmap(
         label: str = 'divergence'
 ) -> None:
     if title is None:
-        title = f"CCJS {label.title()} Heatmap"
+        title = f"D_CCJS {label.title()} Heatmap"
     if out_path is None:
         base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         res = os.path.join(base, 'experiments_result')
         os.makedirs(res, exist_ok=True)
-        fname = f"ccjs_{label}_{os.path.splitext(default_name)[0]}.png"
+        fname = f"d_ccjs_{label}_{os.path.splitext(default_name)[0]}.png"
         out_path = os.path.join(res, fname)
     fig, ax = plt.subplots()
     cax = ax.matshow(dist_df.values)
@@ -216,22 +216,14 @@ if __name__ == '__main__':
     div_df = divergence_matrix(bbas, sizes)
     met_df = metric_matrix(bbas, sizes)
 
-    # ---------- 控制台输出 ---------- #
-    print("\n----- CCJS Divergence 矩阵 -----")
+    print("\n----- D_CCJS Divergence 矩阵 -----")
     print(div_df.to_string())
-    print("\n----- CCJS Metric 矩阵 -----")
+    print("\n----- D_CCJS Metric 矩阵 -----")
     print(met_df.to_string())
 
     # 保存并可视化
     save_csv(div_df, default_name=csv_name, label='divergence')
-    # save_csv(met_df, default_name=csv_name, label='metric')
-    print(f"结果 CSV: experiments_result/ccjs_divergence_{os.path.splitext(csv_name)[0]}.csv")
-    # print(f"结果 CSV: experiments_result/ccjs_metric_{os.path.splitext(csv_name)[0]}.csv")
-
-    # plot_heatmap(div_df, default_name=csv_name, title=None, label='divergence')
-    # plot_heatmap(met_df, default_name=csv_name, title=None, label='metric')
-    # print(f"可视化图: experiments_result/ccjs_divergence_{os.path.splitext(csv_name)[0]}.png")
-    # print(f"可视化图: experiments_result/ccjs_metric_{os.path.splitext(csv_name)[0]}.png")
+    print(f"结果 CSV: experiments_result/d_ccjs_divergence_{os.path.splitext(csv_name)[0]}.csv")
 
     # 验证度量性质：非负性，对称性，三角不等式
     labels = list(met_df.index)

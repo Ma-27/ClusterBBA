@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_bjs_divergence.py
+test_bjs.py
 
 复现 bjs.py 主函数流程，使用 divergence_calculation 包外导入：
 - 处理命令行参数，指定 CSV 文件名
@@ -11,7 +11,7 @@ test_bjs_divergence.py
 - 绘制并保存热力图
 
 在项目根目录运行：
-    python test_bjs_divergence.py [Example_3_3.csv]
+    python test_bjs.py [Example_3_3.csv]
 """
 
 import os

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_ccjs_divergence.py
+test_d_ccjs.py
 
 使用 divergence_calculation.ccjs 包计算 CCJS 距离矩阵，支持传入超参数 n，并验证度量性质
 """
@@ -10,7 +10,7 @@ import sys
 
 import pandas as pd
 
-from divergence_calculation.ccjs import (
+from divergence_calculation.d_ccjs import (
     load_bbas,
     metric_matrix,
     save_csv
@@ -51,18 +51,17 @@ if __name__ == '__main__':
         'm_F4_h3': 1,
     }
 
-    # 计算 CCJS 距离矩阵
+    # 计算 D_CCJS 距离矩阵
     met_df = metric_matrix(bbas, sizes)
 
     # 控制台输出距离矩阵
-    print("\n----- CCJS 距离矩阵 -----")
+    print("\n----- D_CCJS 距离矩阵 -----")
     print(met_df.to_string())
 
     # 保存到 CSV（experiments_result 目录）
     save_csv(met_df, default_name=csv_name)
-    print(f"结果 CSV: experiments_result/ccjs_{"metric"}_{os.path.splitext(csv_name)[0]}.csv")
+    print(f"结果 CSV: experiments_result/d_ccjs_{"metric"}_{os.path.splitext(csv_name)[0]}.csv")
 
     # 绘制并保存热力图
     # plot_heatmap(met_df, default_name=csv_name)
-    # print(f"可视化图已保存到: experiments_result/ccjs_{"metric"}_{os.path.splitext(csv_name)[0]}.png")
-
+    # print(f"可视化图已保存到: experiments_result/d_ccjs_{"metric"}_{os.path.splitext(csv_name)[0]}.png")
