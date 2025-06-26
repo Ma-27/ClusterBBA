@@ -1,45 +1,52 @@
 # -*- coding: utf-8 -*-
 """
-Average Fractal BBA Calculator
+Average BBA Calculator
 ==============================
 
+提供计算指定 CSV 文件中所有 BBA 的平均质量值的接口，供其他脚本调用。
+
+对齐焦元后计算该文件中所有的质量（Mass）平均值，并在控制台输出结果。
+可通过修改变量来指定需要平均的 CSV 文件名。
+
 在 experiments_result 目录中，针对指定的单个 BBA 文件，
-对齐焦元后计算该文件中所有已分形行的质量（Mass）平均值，并在控制台输出结果。
-可通过修改 `target_file` 变量来指定需要平均的 CSV 文件名。
 
 注意：只可用作计算 BBA 平均值！
 
+接口：
+- load_bba_rows(path: str) -> Tuple[List[Dict[FrozenSet[str], float]], List[str]]
+- compute_avg_bba(bba_list: List[Dict[FrozenSet[str], float]]]) -> Dict[FrozenSet[str], float]
+- bba_to_series(bba: Dict[FrozenSet[str], float], order: List[str]) -> List[float]
+- prepare_avg_dataframe(avg_bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> pd.DataFrame
+
+示例：
+```python
+from mean_bba import load_bba_rows, compute_avg_bba, prepare_avg_dataframe
+
+bba_list, focal_order = load_bba_rows('path/to/file.csv')
+avg_bba = compute_avg_bba(bba_list)
+df_avg = prepare_avg_dataframe(avg_bba, focal_order)
+print(df_avg)
+```
 """
+
 import os
 import sys
-from typing import Dict, FrozenSet, List
+from typing import Dict, FrozenSet, List, Tuple
 
 import pandas as pd
+
+# 依赖本项目内现成工具函数 / 模块
+from utility.io import parse_focal_set, format_set
+
+__all__ = ['load_bba_rows', 'compute_avg_bba', 'bba_to_series', 'prepare_avg_dataframe']
 
 
 # ------------------------------ 工具函数 ------------------------------ #
 
-def parse_focal_set(cell: str) -> FrozenSet[str]:
-    """将列名字符串如 '{A ∪ B}' 解析为 frozenset({'A','B'})"""
-    if cell.startswith('{') and cell.endswith('}'):
-        inner = cell[1:-1]
-        # 分割集合元素
-        return frozenset(x.strip() for x in inner.split('∪'))
-    return frozenset()
-
-
-def format_set(s: FrozenSet[str]) -> str:
-    """将 frozenset 转回格式化字符串，如 {'A','B'} -> '{A ∪ B}'"""
-    if not s:
-        return '∅'
-    # 按字母排序并用 ' ∪ ' 连接
-    return '{' + ' ∪ '.join(sorted(s)) + '}'
-
-
-def load_bba_rows(path: str) -> (List[Dict[FrozenSet[str], float]], List[str]):
-    """从 CSV 中加载所有 BBA 行，返回 BBA 字典列表与焦元列顺序"""
+# 从 CSV 中加载所有 BBA 行，返回 BBA 字典列表与焦元列顺序"
+def load_bba_rows(path: str) -> Tuple[List[Dict[FrozenSet[str], float]], List[str]]:
     df = pd.read_csv(path)
-    # 假设第一列为标签，后续列为焦元质量值
+    # 第一列为标签，后续列为焦元质量值
     focal_cols = list(df.columns)[1:]
     bba_list: List[Dict[FrozenSet[str], float]] = []
     # 遍历每一行，提取质量值
@@ -52,17 +59,37 @@ def load_bba_rows(path: str) -> (List[Dict[FrozenSet[str], float]], List[str]):
     return bba_list, focal_cols
 
 
+# 计算 BBA 列表中每个焦元的平均质量"
+def compute_avg_bba(bba_list: List[Dict[FrozenSet[str], float]]) -> Dict[FrozenSet[str], float]:
+    if not bba_list:
+        return {}
+    mass_sum: Dict[FrozenSet[str], float] = {}
+    for bba in bba_list:
+        for fs, m in bba.items():
+            mass_sum[fs] = mass_sum.get(fs, 0.0) + m
+    count = len(bba_list)
+    return {fs: mass / count for fs, mass in mass_sum.items()}
+
+
 def bba_to_series(bba: Dict[FrozenSet[str], float], order: List[str]) -> List[float]:
-    """按给定的原始列名顺序生成质量值列表，用于最后输出"""
+    """按给定的原始列名顺序生成质量值列表，用于输出和 DataFrame 构造"""
     data = {format_set(fs): mass for fs, mass in bba.items()}
     # 对齐顺序，不存在则填 0.0
     return [data.get(col, 0.0) for col in order]
 
 
+def prepare_avg_dataframe(avg_bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> pd.DataFrame:
+    """构造包含平均质量的 DataFrame，并保留4位小数"""
+    header = ['Label'] + focal_order
+    row = ['avg'] + bba_to_series(avg_bba, focal_order)
+    df_avg = pd.DataFrame([row], columns=header).round(4)
+    return df_avg
+
+
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
-    # 用户在此处指定需要计算平均的 CSV 文件名
-    target_file = 'fractal_Example_3_3_3_h0.csv'  # todo: 替换为所需文件名
+    # todo 替换为所需文件名，指定需要计算平均的 CSV 文件名
+    target_file = 'fractal_Example_3_3_3_h2.csv'
 
     # 构造文件路径
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -78,24 +105,9 @@ if __name__ == '__main__':
         print("CSV 中未包含任何 BBA 行。")
         sys.exit(1)
 
-    # 累加各焦元质量
-    mass_sum: Dict[FrozenSet[str], float] = {}
-    for bba in bba_list:
-        for fs, m in bba.items():
-            # 初始化或累加
-            mass_sum[fs] = mass_sum.get(fs, 0.0) + m
-    # 行数即样本数，用于平均
-    count = len(bba_list)
-
-    # 计算平均质量
-    avg_bba = {fs: mass / count for fs, mass in mass_sum.items()}
-
-    # 准备输出表头与数据
-    header = ['Label'] + focal_order
-    row = ['avg'] + bba_to_series(avg_bba, focal_order)
-    # 保留4位小数
-    df_avg = pd.DataFrame([row], columns=header).round(4)
+    avg_bba = compute_avg_bba(bba_list)
+    df_avg = prepare_avg_dataframe(avg_bba, focal_order)
 
     # 打印结果
-    print('----- 指定 CSV BBA 平均 -----')  # 分隔提示
-    print(df_avg.to_string(index=False))  # 不显示索引
+    print('----- 指定 CSV BBA 平均 -----')
+    print(df_avg.to_string(index=False, float_format="%.4f"))
