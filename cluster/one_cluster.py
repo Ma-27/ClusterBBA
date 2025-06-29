@@ -9,7 +9,7 @@ Cluster Module (单簇版本)
 - 簇内 BBA 管理：内部维护一个无序、不重复的 BBA 列表，保留原始质量。
 - 簇心 (Centroid) 更新：通过简单算术平均获得簇心，实时保持最新状态。
 - BBA 入簇：支持动态添加新 BBA，自动触发簇心与簇内散度更新。
-- 簇内散度：调用现有 `bjs.divergence_matrix` 与 `mean_divergence.average_divergence` 计算簇内平均 BJS 散度。
+- 簇内散度：调用现有 `bjs.metric_matrix` 与 `mean_divergence.average_divergence` 计算簇内平均 BJS 距离。
 
 命令行示例
 ^^^^^^^^^^
@@ -45,7 +45,7 @@ from typing import Dict, FrozenSet, List, Tuple, Optional
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
-from divergence.bjs import divergence_matrix  # type: ignore
+from divergence.bjs import metric_matrix  # type: ignore
 from fractal.fractal_average import higher_order_bba  # type: ignore
 from mean.mean_bba import compute_avg_bba  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
@@ -142,12 +142,12 @@ class Cluster:
     def get(self):
         return self
 
-    # 计算并返回簇内平均 BJS 散度。
+    # 计算并返回簇内平均 BJS 距离。
     def intra_divergence(self) -> Optional[float]:
         # 若簇内不足 2 条 BBA，则返回 None（标志值），由 multi_clusters 脚本统一处理。
         if len(self._bbas) < 2:
             return None
-        dist_df = divergence_matrix(self._bbas)
+        dist_df = metric_matrix(self._bbas)
         return average_divergence(dist_df)
 
     # 打印簇的基本信息：分形阶 h，元素个数 n_i，以及 BBA 质量 ASCII 表格。
@@ -160,7 +160,7 @@ class Cluster:
         if self.intra_divergence() is None:
             print('Empty or Single cluster, no intra-cluster divergence.')
         else:
-            print(f'Intra‑cluster avg BJS divergence: {self.intra_divergence():.4f}')
+            print(f'Intra‑cluster avg BJS distance: {self.intra_divergence():.4f}')
         # 打印簇中元素列表
         element_names = [name for name, _ in self._bbas]
         formatted = ", ".join(f'"{n}"' for n in element_names)
