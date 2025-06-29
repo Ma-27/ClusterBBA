@@ -2,7 +2,7 @@
 """
 Cluster Module (单簇版本)
 ========================
-提供对 单个簇 (Cluster) 的基本操作接口，，便于作为包导入。
+提供对 单个簇 (One Cluster) 的基本操作接口，，便于作为包导入。
 
 核心特性
 --------
@@ -15,16 +15,16 @@ Cluster Module (单簇版本)
 ^^^^^^^^^^
 ```bash
 # 默认示例，无参数时根据代码中写好的默认情况运行
-$ python cluster.py
+$ python one_cluster.py
 
 # 指定 CSV 文件及 BBA 名称
-$ python cluster.py ClusTest --csv path/to/Example.csv m1 m3 m4
+$ python one_cluster.py ClusTest --csv path/to/Example.csv m1 m3 m4
 ```
 
 导入接口示例
 ^^^^^^^^^^^^
 ```python
-from cluster import Cluster, initialize_cluster_from_csv, initialize_empty_cluster
+from cluster.one_cluster import Cluster, initialize_cluster_from_csv, initialize_empty_cluster
 
 clus = initialize_empty_cluster(name='EmptyClus')
 print('Empty cluster created:', clus)

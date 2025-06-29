@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
-from cluster import initialize_cluster_from_csv, initialize_empty_cluster  # type: ignore
+from cluster.one_cluster import initialize_cluster_from_csv, initialize_empty_cluster  # type: ignore
 from divergence.bjs import divergence_matrix  # type: ignore
 from fractal.fractal_average import higher_order_bba  # type: ignore
 from mean.mean_bba import compute_avg_bba  # type: ignore
@@ -23,7 +23,7 @@ def _process_input_element_list(
         # 无参数：使用默认簇+CSV
         return default_clusters, default_csv
 
-    # 有参数：`python cluster.py <ClusterName> [--csv CSV] BBA1 BBA2 ...`
+    # 有参数：`python one_cluster.py <ClusterName> [--csv CSV] BBA1 BBA2 ...`
     cluster_name = argv.pop(0)
     csv_path = default_csv
     if argv and argv[0] == '--csv':

@@ -36,7 +36,7 @@ from typing import Dict, FrozenSet, Iterable, List
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from cluster.cluster import Cluster  # type: ignore
+from cluster.one_cluster import Cluster  # type: ignore
 # 分形运算可采用不同的分形办法，默认使用 fractal_average
 from fractal.fractal_average import higher_order_bba  # type: ignore
 

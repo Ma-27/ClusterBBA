@@ -10,7 +10,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from cluster.cluster import initialize_empty_cluster  # type: ignore
+from cluster.one_cluster import initialize_empty_cluster  # type: ignore
 from divergence.metric_test import (
     test_nonnegativity,
     test_symmetry,
