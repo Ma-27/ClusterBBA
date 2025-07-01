@@ -86,7 +86,7 @@ def load_bbas(df: pd.DataFrame, ) -> Tuple[List[Tuple[str, Dict[FrozenSet[str], 
     Returns
     -------
     list
-        ``[(name, {focal: mass, …}), …]``
+        ``[(name, {focal: mass, …}), …]``  （这就是一条 BBA 的数据结构）
     list
         焦元列标题顺序，用于后续 DataFrame 重建保持对齐。
     """
