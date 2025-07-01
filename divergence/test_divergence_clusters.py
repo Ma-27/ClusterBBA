@@ -43,6 +43,8 @@ def _print_distance_info(mc: MultiClusters) -> None:
     else:
         print(f"平均 RD_CCJS: {avg_rd:.4f}")
 
+    print()
+
     # 打印每个簇的 D_intra
     for clus in clusters:
         di = clus.intra_divergence()
@@ -67,7 +69,7 @@ def bba_dynamic_adding(csv_path: str) -> None:
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == "__main__":  # pragma: no cover
     # todo 默认示例文件名，可根据实际情况修改
-    example_name = "Example_3_3_3.csv"
+    example_name = "Example_1_3.csv"
     # 确定项目根目录：当前脚本位于 divergence/，故上溯一级
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     default_csv = os.path.join(base_dir, "data", "examples", example_name)
