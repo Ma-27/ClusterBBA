@@ -53,23 +53,33 @@ __all__ = [
 # 工具函數
 # ---------------------------------------------------------------------------
 
-def _scale_weights(cluster: Cluster) -> Dict[FrozenSet[str], float]:
-    """计算簇中每个焦元的规模权重 ``w(A)``。"""
-    # 该字典用于统计每个焦元（fs）在簇中出现的次数
-    counts: Dict[FrozenSet[str], int] = {}
+def _scale_weights(cluster: Cluster, delta: float = 1e-4, epsilon: float = 1e-2) -> Dict[FrozenSet[str], float]:
+    """
+    对簇中每条 BBA 的 m_i(A) 使用平滑 Sigmoid 函数，如果远大于 delta 则接近 1，
+
+    h(m) = 1 / (1 + exp(-(m - delta) / epsilon))
+
+    累加得到 \widetilde n(A)，再在所有焦元上归一化。
+    delta 控制平滑阈值，epsilon 控制过渡的宽度。
+    """
+
+    # 收集簇内出现过的全部焦元集合
+    focal_sets = set()
     for _, bba in cluster.get_bbas():
-        # 提醒：bba 是一个 Dict[FrozenSet[str], float]，映射焦元到其质量
-        for fs, mass in bba.items():
-            # 只有质量大于0的焦元才计入统计 todo 之后研究有改进空间
-            if mass > 0:
-                counts[fs] = counts.get(fs, 0) + 1
-    # 计算所有焦元出现的总次数
-    total = sum(counts.values())
-    # 如果总次数为0（簇中没有任何质量>0的焦元），返回所有焦元权重为0
+        focal_sets.update(bba.keys())
+
+    # 获取 BBA 非空焦元的集合
+    votes: Dict[FrozenSet[str], float] = {fs: 0.0 for fs in focal_sets}
+    for _, bba in cluster.get_bbas():
+        for fs in focal_sets:
+            mass = bba.get(fs, 0.0)
+            vote = 1.0 / (1.0 + math.exp(-(mass - delta) / epsilon))
+            votes[fs] += vote
+
+    total = sum(votes.values())
     if total == 0:
-        return {fs: 0.0 for fs in counts}
-    # 否则，计算每个焦元的规模权重 = 该焦元出现次数 / 总次数
-    return {fs: cnt / total for fs, cnt in counts.items()}
+        return {fs: 0.0 for fs in focal_sets}
+    return {fs: v / total for fs, v in votes.items()}
 
 
 def _aligned_centroid(cluster: Cluster, H: int) -> Dict[FrozenSet[str], float]:
@@ -94,8 +104,8 @@ def _max_fractal_order(clusters: Iterable[Cluster]) -> int:
 
 def rd_ccjs_metric(clus_p: Cluster, clus_q: Cluster, H: int) -> float:
     """计算两个簇之间的 ``RD_CCJS`` 距离。"""
-    w_p = _scale_weights(clus_p)  # shape: {FrozenSet[str]: float}
-    w_q = _scale_weights(clus_q)  # shape: {FrozenSet[str]: float}
+    w_p = _scale_weights(clus_p)
+    w_q = _scale_weights(clus_q)
     # debug 用，记得删掉
     # print(f"Cluster {clus_p.name} weights w_p: {w_p}")
     # print(f"Cluster {clus_q.name} weights w_q: {w_q}")

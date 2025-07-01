@@ -73,7 +73,7 @@ def plot_compare_curve(df: pd.DataFrame, out_path: str) -> None:
 # ------------------------------ 主函数 ------------------------------ #
 
 if __name__ == "__main__":
-    alphas = list(np.linspace(0.0000, 1.0000, 101))
+    alphas = list(np.linspace(0.0000, 1.0000, 301))
     df = compute_distances(alphas)
 
     # 保存结果到 CSV 文件
