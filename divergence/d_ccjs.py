@@ -42,11 +42,9 @@ from typing import Dict, FrozenSet, List, Tuple, Optional
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from config import EPS
 # 依赖本项目内现成工具函数 / 模块
 from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
-
-# ------------------------------ 常量 ------------------------------ #
-EPS = 1e-12  # 避免 log(0)
 
 
 # 计算两簇之间的 D_CCJS divergence（新定义）
@@ -166,5 +164,3 @@ def plot_heatmap(
     ax.set_title(title)
     plt.tight_layout()
     plt.savefig(out_path, dpi=300)
-
-

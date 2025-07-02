@@ -1,0 +1,21 @@
+# -*- coding: utf-8 -*-
+"""项目全局超参数配置"""
+
+# RD_CCJS 权重平滑参数
+SCALE_DELTA: float = 1e-4
+SCALE_EPSILON: float = 1e-2
+
+# 计算簇间收益 d_intra 的默认 epsilon，用于处理多簇全为单元簇 (K>=2, forall n_i=1) 的小常数
+INTRA_EPS: float = 1e-6
+
+# 单簇单元判断阈值，本质是 BJS 阈值，用于处理单簇单元 (K=1, n1=1) 边界
+THRESHOLD_BJS: float = 0.5571
+
+# RD_CCJS 随机二分次数
+SPLIT_TIMES: int = 5
+
+# 计算 BJS / D_CCJS 时避免取 log(0) 的极小常数
+EPS: float = 1e-12
+
+# 默认分形深度
+SEG_DEPTH: int = 2

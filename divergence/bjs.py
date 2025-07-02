@@ -35,11 +35,9 @@ from typing import Dict, FrozenSet, List, Tuple, Optional
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from config import EPS
 # 依赖本项目内现成工具函数 / 模块
 from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
-
-# ------------------------------ 常量 ------------------------------ #
-EPS = 1e-12  # 避免 log(0)
 
 
 # 计算两条 BBA 之间的 BJS divergence

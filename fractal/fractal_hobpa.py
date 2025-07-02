@@ -37,8 +37,8 @@ CSV 格式要求
 示例：
 ```python
 from fractal_hobpa import load_bbas, compute_fractal_df
-import pandas as pd
 
+import pandas as pd
 df = pd.read_csv('data/examples/Example_2_3.csv')
 bbas, focal_cols = load_bbas(df)
 out_df = compute_fractal_df(bbas, focal_cols, h=3)
@@ -53,6 +53,7 @@ from typing import Dict, FrozenSet, List, Tuple, Iterator
 
 import pandas as pd
 
+from config import SEG_DEPTH
 # 依赖本项目内现成工具函数 / 模块
 from utility.io import load_bbas, format_set
 
@@ -129,9 +130,8 @@ def compute_fractal_df(
 if __name__ == '__main__':
     # 读取 h，允许 h=0，禁止负数
     try:
-        # todo 分形深度 可按需修改
-        seg_depth = 2
-        h = int(sys.argv[1]) if len(sys.argv) > 1 else seg_depth
+        # 默认分形深度可在 config.py 中调整
+        h = int(sys.argv[1]) if len(sys.argv) > 1 else SEG_DEPTH
         if h < 0:
             raise ValueError
     except ValueError:

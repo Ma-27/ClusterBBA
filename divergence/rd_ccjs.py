@@ -37,6 +37,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from cluster.one_cluster import Cluster  # type: ignore
+from config import SCALE_DELTA, SCALE_EPSILON
 # 分形运算可采用不同的分形办法，默认使用 fractal_average
 from fractal.fractal_average import higher_order_bba  # type: ignore
 
@@ -53,13 +54,14 @@ __all__ = [
 # 工具函數
 # ---------------------------------------------------------------------------
 
-def _scale_weights(cluster: Cluster, delta: float = 1e-4, epsilon: float = 1e-2) -> Dict[FrozenSet[str], float]:
+def _scale_weights(cluster: Cluster, delta: float = SCALE_DELTA, epsilon: float = SCALE_EPSILON) -> Dict[
+    FrozenSet[str], float]:
     """
     对簇中每条 BBA 的 m_i(A) 使用平滑 Sigmoid 函数，如果远大于 delta 则接近 1，
 
     h(m) = 1 / (1 + exp(-(m - delta) / epsilon))
 
-    累加得到 \widetilde n(A)，再在所有焦元上归一化。
+    累加得到 \\widetilde n(A)，再在所有焦元上归一化。
     delta 控制平滑阈值，epsilon 控制过渡的宽度。
     """
 
