@@ -2,8 +2,8 @@
 """项目全局超参数配置"""
 
 # RD_CCJS 权重平滑参数
-SCALE_DELTA: float = 1e-4
-SCALE_EPSILON: float = 1e-2
+SCALE_DELTA: float = 8e-3
+SCALE_EPSILON: float = 4e-3
 
 # 计算簇间收益 d_intra 的默认 epsilon，用于处理多簇全为单元簇 (K>=2, forall n_i=1) 的小常数
 INTRA_EPS: float = 1e-6

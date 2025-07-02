@@ -61,7 +61,7 @@ def plot_curves(df: pd.DataFrame, out_path: str) -> None:
 
 if __name__ == "__main__":
     # todo 在这里更改 alpha 的范围和种子数目
-    alphas = list(np.linspace(0.97, 1.0, 101))
+    alphas = list(np.linspace(0.97, 1.0, 301))
     df = compute_distances(alphas)
 
     # 保存结果到 CSV

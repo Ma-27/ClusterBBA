@@ -16,13 +16,15 @@ import numpy as np
 import pandas as pd
 
 from cluster.one_cluster import initialize_empty_cluster
+from config import SCALE_DELTA, SCALE_EPSILON
 from divergence.bjs import bjs_metric
 from divergence.rd_ccjs import rd_ccjs_metric
 
 
 # ------------------------------ 核心计算 ------------------------------ #
 
-def compute_distances(alphas: List[float]) -> pd.DataFrame:
+def compute_distances(alphas: List[float], *, delta: float = SCALE_DELTA,
+                      epsilon: float = SCALE_EPSILON, ) -> pd.DataFrame:
     """返回给定 α 序列下的 RD_CCJS、Dempster 冲突系数与 BJS 距离"""
     records = []
     for a in alphas:
@@ -35,7 +37,7 @@ def compute_distances(alphas: List[float]) -> pd.DataFrame:
         c2.add_bba("m2", m2)
 
         H = max(c1.h, c2.h)
-        rd = rd_ccjs_metric(c1, c2, H)
+        rd = rd_ccjs_metric(c1, c2, H, delta=delta, epsilon=epsilon)
         bj = bjs_metric(m1, m2)
         k = a * a + (1 - a) * (1 - a)  # Dempster 冲突系数
         records.append([a, rd, bj, k])
@@ -62,7 +64,7 @@ def plot_curves(df: pd.DataFrame, out_path: str) -> None:
 
 if __name__ == "__main__":
     # todo 在这里更改 alpha 的范围和种子数目
-    alphas = list(np.linspace(0.0, 1.0, 101))
+    alphas = list(np.linspace(0.0, 1.0, 301))
     df = compute_distances(alphas)
 
     # 保存结果到 CSV
