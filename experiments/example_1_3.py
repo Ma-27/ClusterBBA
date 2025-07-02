@@ -9,11 +9,13 @@
 from __future__ import annotations
 
 import os
-from typing import Tuple
+from typing import Tuple, List
 
 import pandas as pd
 
 from cluster.multi_clusters import MultiClusters
+from cluster.one_cluster import Cluster
+from cluster.visualize_clusters import visualize_clusters
 from divergence.rd_ccjs import metric_matrix
 from mean.mean_divergence import average_divergence
 from utility.io import load_bbas
@@ -21,7 +23,7 @@ from utility.io import load_bbas
 
 # ------------------------------ 核心流程 ------------------------------ #
 
-def run_experiment(csv_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, float]:
+def run_experiment(csv_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, float, List[Cluster]]:
     """执行 Example 1.3 分簇实验并返回结果数据"""
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
@@ -37,7 +39,7 @@ def run_experiment(csv_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, float]:
     avg_rd = average_divergence(dist_df)
 
     assign_df = pd.DataFrame(assignments, columns=["BBA", "Cluster"])
-    return assign_df, dist_df.round(6), float(avg_rd)
+    return assign_df, dist_df.round(6), float(avg_rd), clusters
 
 
 # ------------------------------ 主函数 ------------------------------ #
@@ -47,7 +49,7 @@ if __name__ == "__main__":
     csv_path = os.path.join(base_dir, "..", "data", "examples", "Example_1_3.csv")
     csv_path = os.path.normpath(csv_path)
 
-    assign_df, dist_df, avg_rd = run_experiment(csv_path)
+    assign_df, dist_df, avg_rd, clusters = run_experiment(csv_path)
 
     result_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))
     os.makedirs(result_dir, exist_ok=True)
@@ -59,3 +61,6 @@ if __name__ == "__main__":
     print("\nRD_CCJS 距离矩阵：")
     print(dist_df.to_string())
     print(f"\n平均 RD_CCJS: {avg_rd:.6f}")
+
+    # 可视化簇划分结果
+    visualize_clusters(clusters)
