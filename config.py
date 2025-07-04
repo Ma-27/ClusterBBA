@@ -17,5 +17,5 @@ SPLIT_TIMES: int = 5
 # 计算 BJS / D_CCJS 时避免取 log(0) 的极小常数
 EPS: float = 1e-12
 
-# 默认分形深度
-SEG_DEPTH: int = 2
+# 默认分形深度，todo 可根据实际情况修改
+SEG_DEPTH: int = 1

@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import math
 import os
-from itertools import combinations
 from typing import FrozenSet, List, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
 # 依赖本项目内现成工具函数 / 模块
+from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
 from utility.bba import BBA
 
 _LOG_BASE: float = 2.0  # 对数底数，默认为 2.0
@@ -26,31 +25,29 @@ def b_divergence(m1: BBA, m2: BBA) -> float:
     """计算两条 BBA 的 B 散度"""
 
     # ----------- 构造 2^N 数据结构 ----------- #
-    # 获取两个 BBA 的联合框架并转为列表，便于枚举所有子集
-    frame: FrozenSet[str] = frozenset().union(*m1.keys(), *m2.keys())
-    elems = list(frame)
-
-    # 枚举并保存所有非空子集，顺序固定便于后续索引
-    subsets: List[FrozenSet[str]] = []
-    for r in range(1, len(elems) + 1):
-        for c in combinations(elems, r):
-            subsets.append(frozenset(c))
+    # 利用 BBA 接口统一获取 m1、m2 的并集识别框架
+    frame: FrozenSet[str] = BBA.union(m1.frame, m2.frame)
+    helper = BBA(frame=frame)
+    # 列举 \Theta 的所有非空子集，顺序保持一致
+    subsets: List[FrozenSet[str]] = helper.theta_powerset()
 
     # 不考虑空集，共有 size 个子集
     size = len(subsets)
     # 对每个子集保存 (质量值, |A|)
     m1Ai: List[Tuple[float, int]] = [
-        (m1.get(s, 0.0), len(s)) for s in subsets
+        (m1.get(s, 0.0), BBA.cardinality(s)) for s in subsets
     ]
     m2Aj: List[Tuple[float, int]] = [
-        (m2.get(s, 0.0), len(s)) for s in subsets
+        (m2.get(s, 0.0), BBA.cardinality(s)) for s in subsets
     ]
-    # 预先计算交集和并集的元素个数矩阵
+    # 预先计算交集和并集元素个数矩阵
     inter_mat: List[List[int]] = [
-        [len(subsets[i] & subsets[j]) for j in range(size)] for i in range(size)
+        [BBA.cardinality(BBA.intersection(subsets[i], subsets[j])) for j in range(size)]
+        for i in range(size)
     ]
     union_mat: List[List[int]] = [
-        [len(subsets[i] | subsets[j]) for j in range(size)] for i in range(size)
+        [BBA.cardinality(BBA.union(subsets[i], subsets[j])) for j in range(size)]
+        for i in range(size)
     ]
 
     # ----------- 双重求和计算 B 散度 ----------- #
@@ -67,7 +64,7 @@ def b_divergence(m1: BBA, m2: BBA) -> float:
             inter = inter_mat[i][j]
             if inter == 0:
                 continue
-            # 计算并集元素个数（虽然公式中未直接使用，但这里仍提前计算，便于后续可能扩展）
+            # 计算并集元素个数 fixme 这个没有完全按照公式来，因为完全按照公式来结果对不上，只有这一种方案对上了。
             union = union_mat[i][j]
             # 中间分布
             M = p + q

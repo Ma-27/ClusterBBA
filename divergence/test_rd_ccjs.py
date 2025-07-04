@@ -44,6 +44,7 @@ if __name__ == "__main__":
     DEFAULT_CLUSTER_ASSIGNMENT: Dict[str, List[str]] = {
         "Clus1": ["m1"],
         "Clus2": ["m2"],
+        "Clus3": ["m3"],
     }
 
     # 初始化簇
