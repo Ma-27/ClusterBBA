@@ -9,29 +9,29 @@ D_CCJS Divergence & Metric Calculator Module
 - d_ccjs_metric(m_p, m_q, n_p, n_q) -> float
 - divergence_matrix(bbas, sizes) -> pd.DataFrame
 - metric_matrix(bbas, sizes) -> pd.DataFrame
-- save_csv(dist_df, out_path=None, default_name='Example_0_1.csv', label='divergence') -> None
-- plot_heatmap(dist_df, out_path=None, default_name='Example_0_1.csv', title=None, label='divergence') -> None
+- save_csv(dist_df, out_path=None, default_name='Example_3_3.csv', label='divergence') -> None
+- plot_heatmap(dist_df, out_path=None, default_name='Example_3_3.csv', title=None, label='divergence') -> None
 
 脚本用法：
 ```bash
-$ python d_ccjs.py [Example_0_1.csv]
+$ python d_ccjs.py [Example_3_3.csv]
 ```
 示例：
 ```python
 from d_ccjs import load_bbas, divergence_matrix, metric_matrix, save_csv, plot_heatmap
 import pandas as pd
 
-df = pd.read_csv('data/examples/Example_0_1.csv')
+df = pd.read_csv('data/examples/Example_3_3.csv')
 bbas, _ = load_bbas(df)
 # 手动提供簇规模
 sizes = {'Clus_1': 10, 'Clus_2': 7}
 div_df = divergence_matrix(bbas, sizes)
 met_df = metric_matrix(bbas, sizes)
 print(div_df, met_df)
-save_csv(div_df, default_name='Example_0_1.csv', label='divergence')
-save_csv(met_df, default_name='Example_0_1.csv', label='metric')
-plot_heatmap(div_df, default_name='Example_0_1.csv', title='D_CCJS Divergence Heatmap', label='divergence')
-plot_heatmap(met_df, default_name='Example_0_1.csv', title='D_CCJS Metric Heatmap', label='metric')
+save_csv(div_df, default_name='Example_3_3.csv', label='divergence')
+save_csv(met_df, default_name='Example_3_3.csv', label='metric')
+plot_heatmap(div_df, default_name='Example_3_3.csv', title='D_CCJS Divergence Heatmap', label='divergence')
+plot_heatmap(met_df, default_name='Example_3_3.csv', title='D_CCJS Metric Heatmap', label='metric')
 ```
 """
 
@@ -42,11 +42,9 @@ from typing import Dict, FrozenSet, List, Tuple, Optional
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from config import EPS
 # 依赖本项目内现成工具函数 / 模块
 from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
-
-# ------------------------------ 常量 ------------------------------ #
-EPS = 1e-12  # 避免 log(0)
 
 
 # 计算两簇之间的 D_CCJS divergence（新定义）
@@ -108,6 +106,11 @@ def divergence_matrix(
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 
+# ---------------------------------------------------------------------------
+# Convenience: matrices / CSV / visualisation
+# ---------------------------------------------------------------------------
+
+
 # 生成 D_CCJS metric 矩阵
 def metric_matrix(
         bbas: List[Tuple[str, Dict[FrozenSet[str], float]]],
@@ -126,7 +129,7 @@ def metric_matrix(
 def save_csv(
         dist_df: pd.DataFrame,
         out_path: Optional[str] = None,
-        default_name: str = 'Example_0_1.csv',
+        default_name: str = 'Example_3_3.csv',
         label: str = 'divergence',
         index_label: str = 'Cluster'
 ) -> None:
@@ -144,7 +147,7 @@ def save_csv(
 def plot_heatmap(
         dist_df: pd.DataFrame,
         out_path: Optional[str] = None,
-        default_name: str = 'Example_0_1.csv',
+        default_name: str = 'Example_3_3.csv',
         title: Optional[str] = None,
         label: str = 'divergence'
 ) -> None:
@@ -166,5 +169,3 @@ def plot_heatmap(
     ax.set_title(title)
     plt.tight_layout()
     plt.savefig(out_path, dpi=300)
-
-

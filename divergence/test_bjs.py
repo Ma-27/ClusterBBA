@@ -19,9 +19,9 @@ import sys
 
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from divergence.bjs import metric_matrix, save_csv, divergence_matrix  # type: ignore
 from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
-# 依赖本项目内现成工具函数 / 模块
 from utility.io import load_bbas
 
 # ------------------------------ 主函数 ------------------------------ #

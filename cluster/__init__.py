@@ -4,7 +4,8 @@ Package initialization for cluster
 """
 
 __all__ = [
-    "one_cluster.py",
+    "one_cluster",
     "multi_clusters",
+    "visualize_clusters",
     # ……其他你想公开的模块名
 ]

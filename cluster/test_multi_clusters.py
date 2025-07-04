@@ -9,7 +9,9 @@ if BASE_DIR not in sys.path:
 
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.multi_clusters import MultiClusters  # type: ignore
+from cluster.visualize_clusters import visualize_clusters
 from utility.io import load_bbas  # type: ignore
 
 
@@ -29,6 +31,9 @@ def bba_dynamic_adding(csv_path: str) -> None:
         print(f"------------------------------ Round: {name} ------------------------------ ")
         mc.add_bba_by_reward(name, bba)
         mc.print_all_info()
+
+    # 可视化整个簇集。
+    visualize_clusters(list(mc._clusters.values()))
 
 
 # ------------------------------ 主函数 ------------------------------ #

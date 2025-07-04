@@ -10,7 +10,9 @@ from __future__ import annotations
 import random
 from typing import Dict, List, Tuple, Optional
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
+from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS
 from divergence.bjs import bjs_metric
 from divergence.rd_ccjs import metric_matrix  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
@@ -22,13 +24,6 @@ NamedBBA = Tuple[str, BBA]
 __all__ = [
     "MultiClusters",
 ]
-
-# BJS 阈值，用于处理单簇单元 (K=1, n1=1) 边界
-THRESHOLD_BJS = 0.5571
-# 随机二分次数，用于估计单簇多元情形下的 ``RD_CCJS``
-SPLIT_TIMES = 5
-# 用于处理多簇全为单元簇 (K>=2, forall n_i=1) 的小常数
-INTRA_EPS = 1e-6
 
 
 class MultiClusters:

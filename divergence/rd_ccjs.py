@@ -12,8 +12,8 @@
 - ``rd_ccjs_metric(clus_p, clus_q, H) -> float``
 - ``divergence_matrix(clusters) -> pd.DataFrame``
 - ``metric_matrix(clusters) -> pd.DataFrame``
-- ``save_csv(dist_df, out_path=None, default_name='Example_0_1.csv', label='divergence')``
-- ``plot_heatmap(dist_df, out_path=None, default_name='Example_0_1.csv', title=None, label='divergence')``
+- ``save_csv(dist_df, out_path=None, default_name='Example_3_3.csv', label='divergence')``
+- ``plot_heatmap(dist_df, out_path=None, default_name='Example_3_3.csv', title=None, label='divergence')``
 
 示例
 ^^^^
@@ -36,13 +36,14 @@ from typing import Dict, FrozenSet, Iterable, List
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster  # type: ignore
+from config import SCALE_DELTA, SCALE_EPSILON
 # 分形运算可采用不同的分形办法，默认使用 fractal_average
 from fractal.fractal_average import higher_order_bba  # type: ignore
 
 __all__ = [
     "rd_ccjs_metric",
-    "divergence_matrix",
     "metric_matrix",
     "save_csv",
     "plot_heatmap",
@@ -53,23 +54,43 @@ __all__ = [
 # 工具函數
 # ---------------------------------------------------------------------------
 
-def _scale_weights(cluster: Cluster) -> Dict[FrozenSet[str], float]:
-    """计算簇中每个焦元的规模权重 ``w(A)``。"""
-    # 该字典用于统计每个焦元（fs）在簇中出现的次数
-    counts: Dict[FrozenSet[str], int] = {}
+def _sigmoid(x: float) -> float:
+    """数值稳定的 Sigmoid 函数。"""
+    if x >= 50:
+        return 1.0
+    if x <= -50:
+        return 0.0
+    return 1.0 / (1.0 + math.exp(-x))
+
+
+def _scale_weights(cluster: Cluster, delta: float = SCALE_DELTA, epsilon: float = SCALE_EPSILON) -> Dict[
+    FrozenSet[str], float]:
+    r"""
+    对簇中每条 BBA 的 ``m_i(A)`` 使用平滑 Sigmoid 函数，如果远大于 ``delta`` 则接近 1。
+
+    ``h(m) = 1 / (1 + exp(-(m - delta) / epsilon))``
+
+    累加得到 :math:`\\widetilde n(A)`，再在所有焦元上归一化。
+    ``delta`` 控制平滑阈值，``epsilon`` 控制过渡的宽度。
+    """
+
+    # 收集簇内出现过的全部焦元集合
+    focal_sets = set()
     for _, bba in cluster.get_bbas():
-        # 提醒：bba 是一个 Dict[FrozenSet[str], float]，映射焦元到其质量
-        for fs, mass in bba.items():
-            # 只有质量大于0的焦元才计入统计 todo 之后研究有改进空间
-            if mass > 0:
-                counts[fs] = counts.get(fs, 0) + 1
-    # 计算所有焦元出现的总次数
-    total = sum(counts.values())
-    # 如果总次数为0（簇中没有任何质量>0的焦元），返回所有焦元权重为0
+        focal_sets.update(bba.keys())
+
+    # 获取 BBA 非空焦元的集合
+    votes: Dict[FrozenSet[str], float] = {fs: 0.0 for fs in focal_sets}
+    for _, bba in cluster.get_bbas():
+        for fs in focal_sets:
+            mass = bba.get(fs, 0.0)
+            vote = _sigmoid((mass - delta) / epsilon)  # 使用sigmoid替换
+            votes[fs] += vote
+
+    total = sum(votes.values())
     if total == 0:
-        return {fs: 0.0 for fs in counts}
-    # 否则，计算每个焦元的规模权重 = 该焦元出现次数 / 总次数
-    return {fs: cnt / total for fs, cnt in counts.items()}
+        return {fs: 0.0 for fs in focal_sets}
+    return {fs: v / total for fs, v in votes.items()}
 
 
 def _aligned_centroid(cluster: Cluster, H: int) -> Dict[FrozenSet[str], float]:
@@ -92,10 +113,22 @@ def _max_fractal_order(clusters: Iterable[Cluster]) -> int:
 # 核心距离计算
 # ---------------------------------------------------------------------------
 
-def rd_ccjs_metric(clus_p: Cluster, clus_q: Cluster, H: int) -> float:
-    """计算两个簇之间的 ``RD_CCJS`` 距离。"""
-    w_p = _scale_weights(clus_p)  # shape: {FrozenSet[str]: float}
-    w_q = _scale_weights(clus_q)  # shape: {FrozenSet[str]: float}
+def rd_ccjs_metric(clus_p: Cluster, clus_q: Cluster, H: int, delta: float = SCALE_DELTA,
+                   epsilon: float = SCALE_EPSILON, ) -> float:
+    """计算两个簇之间的 ``RD_CCJS`` 距离。
+
+    Parameters
+    ----------
+    clus_p, clus_q : Cluster
+        待测的两个质量函数簇。
+    H : int
+        全局分形阶。
+    delta, epsilon : float
+        权重平滑参数，对应 ``config.py`` 中的 ``SCALE_DELTA`` 与 ``SCALE_EPSILON``。
+    """
+
+    w_p = _scale_weights(clus_p, delta=delta, epsilon=epsilon)
+    w_q = _scale_weights(clus_q, delta=delta, epsilon=epsilon)
     # debug 用，记得删掉
     # print(f"Cluster {clus_p.name} weights w_p: {w_p}")
     # print(f"Cluster {clus_q.name} weights w_q: {w_q}")
@@ -113,11 +146,12 @@ def rd_ccjs_metric(clus_p: Cluster, clus_q: Cluster, H: int) -> float:
 
 
 # ---------------------------------------------------------------------------
-# 矩阵计算
+# Convenience: matrices / CSV / visualisation
 # ---------------------------------------------------------------------------
 
-def divergence_matrix(clusters: List[Cluster]) -> pd.DataFrame:
-    """生成 ``RD_CCJS`` 距离矩阵。"""
+def metric_matrix(clusters: List[Cluster], delta: float = SCALE_DELTA,
+                  epsilon: float = SCALE_EPSILON, ) -> pd.DataFrame:
+    """生成 ``RD_CCJS`` 距离矩阵，可自定义平滑参数。这也是该脚本最核心的API。"""
     names = [c.name for c in clusters]
     size = len(clusters)
     H = _max_fractal_order(clusters)
@@ -126,23 +160,15 @@ def divergence_matrix(clusters: List[Cluster]) -> pd.DataFrame:
     # 计算每对簇之间的距离
     for i in range(size):
         for j in range(i + 1, size):
-            d = rd_ccjs_metric(clusters[i], clusters[j], H)
+            d = rd_ccjs_metric(clusters[i], clusters[j], H, delta=delta, epsilon=epsilon)
             mat[i][j] = mat[j][i] = d
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 
-# ``metric_matrix`` 与 ``divergence_matrix`` 在此等价，为接口兼容保留
-metric_matrix = divergence_matrix
-
-
-# ---------------------------------------------------------------------------
-# I/O 輔助
-# ---------------------------------------------------------------------------
-
 def save_csv(
         dist_df: pd.DataFrame,
         out_path: str | None = None,
-        default_name: str = "Example_0_1.csv",
+        default_name: str = "Example_3_3.csv",
         label: str = "divergence",
         index_label: str = "Cluster",
 ) -> None:
@@ -159,7 +185,7 @@ def save_csv(
 def plot_heatmap(
         dist_df: pd.DataFrame,
         out_path: str | None = None,
-        default_name: str = "Example_0_1.csv",
+        default_name: str = "Example_3_3.csv",
         title: str | None = None,
         label: str = "divergence",
 ) -> None:
