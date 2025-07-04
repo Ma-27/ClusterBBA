@@ -40,19 +40,19 @@ print('Intra‑divergence:', clus.intra_divergence())
 """
 
 import os
-from typing import Dict, FrozenSet, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional
 
 import pandas as pd
 
-# 依赖本项目内现成工具函数 / 模块
 from divergence.bjs import metric_matrix  # type: ignore
 from fractal.fractal_average import higher_order_bba  # type: ignore
 from mean.mean_bba import compute_avg_bba  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
-from utility.io import load_bbas, parse_focal_set, format_set  # type: ignore
+# 依赖本项目内现成工具函数 / 模块
+from utility.bba import BBA
+from utility.io import load_bbas  # type: ignore
 
 # ------------------------------ 类型别名 ------------------------------ #
-BBA = Dict[FrozenSet[str], float]
 NamedBBA = Tuple[str, BBA]
 
 __all__ = [
@@ -171,13 +171,13 @@ class Cluster:
         # 簇心质量表
         if self._centroid:
             print("Centroid mass table:")
-            cent_data = {format_set(fs): [self._centroid.get(fs, 0.0)] for fs in focal_sets}
+            cent_data = {BBA.format_set(fs): [self._centroid.get(fs, 0.0)] for fs in focal_sets}
             cent_df = pd.DataFrame(cent_data, index=[self.name])
             print(cent_df.to_string(float_format='%.4f'))
 
         # BBA 质量表
         print("BBA mass table:")
-        data = {format_set(fs): [bba.get(fs, 0.0) for _, bba in self._bbas] for fs in focal_sets}
+        data = {BBA.format_set(fs): [bba.get(fs, 0.0) for _, bba in self._bbas] for fs in focal_sets}
         df = pd.DataFrame(data, index=[name for name, _ in self._bbas])
         # 打印 ASCII 表格
         print(df.to_string(float_format='%.4f'))

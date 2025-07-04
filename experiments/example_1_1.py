@@ -20,6 +20,7 @@ from cluster.one_cluster import initialize_empty_cluster
 from config import SCALE_DELTA, SCALE_EPSILON
 from divergence.bjs import bjs_metric
 from divergence.rd_ccjs import rd_ccjs_metric
+from utility.bba import BBA
 
 
 # ------------------------------ 核心计算 ------------------------------ #
@@ -29,8 +30,8 @@ def compute_distances(alphas: List[float], *, delta: float = SCALE_DELTA,
     """返回给定 α 序列下的 RD_CCJS、Dempster 冲突系数与 BJS 距离"""
     records = []
     for a in alphas:
-        m1 = {frozenset({"A1"}): a, frozenset({"A2"}): 1 - a}
-        m2 = {frozenset({"A1"}): 1 - a, frozenset({"A2"}): a}
+        m1 = BBA({frozenset({"A1"}): a, frozenset({"A2"}): 1 - a})
+        m2 = BBA({frozenset({"A1"}): 1 - a, frozenset({"A2"}): a})
 
         c1 = initialize_empty_cluster("Clus1")
         c1.add_bba("m1", m1)

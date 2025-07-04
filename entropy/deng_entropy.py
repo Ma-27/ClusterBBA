@@ -12,7 +12,7 @@ Deng 熵是衡量 BBA 不确定性的一种度量，越大表示不确定性越�
 
 模块接口
 --------
-- deng_entropy(bba: Dict[FrozenSet[str], float]) -> float
+- deng_entropy(bba: BBA) -> float
 
 使用方法
 --------
@@ -27,11 +27,11 @@ $ python deng_entropy.py Example_3_3_1.csv
 import math
 import os
 import sys
-from typing import Dict, FrozenSet
 
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
+from utility.bba import BBA
 from utility.io import load_bbas
 
 __all__ = [
@@ -42,7 +42,7 @@ __all__ = [
 # ------------------------------ Deng 熵计算 ------------------------------ #
 
 # 计算单个 BBA 的 Deng 熵
-def deng_entropy(bba: Dict[FrozenSet[str], float]) -> float:
+def deng_entropy(bba: BBA) -> float:
     entropy = 0.0
     for focal, mass in bba.items():
         # 跳过空集或质量为 0 的焦元

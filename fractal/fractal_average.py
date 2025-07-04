@@ -20,10 +20,9 @@ $ python fractal_average.py 3          # h = 3
 
 模块提供可导入接口，供其他脚本调用：
 - powerset(s: FrozenSet[str]) -> Iterator[FrozenSet[str]]
-- split_once(bba: Dict[FrozenSet[str], float], _h: int) -> Dict[FrozenSet[str], float]
-- higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]
-- bba_to_series(bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> List[float]
-- compute_fractal_df(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]], focal_cols: List[str], h: int) -> pd.DataFrame
+- split_once(bba: BBA, _h: int) -> BBA
+- higher_order_bba(bba: BBA, h: int) -> BBA
+- compute_fractal_df(bbas: List[Tuple[str, BBA]], focal_cols: List[str], h: int) -> pd.DataFrame
 
 使用方法与命令行脚本一致。
 """
@@ -37,11 +36,13 @@ import pandas as pd
 
 from config import SEG_DEPTH
 # 依赖本项目内现成工具函数 / 模块
-from utility.io import load_bbas, format_set
+from utility.bba import BBA
+from utility.io import load_bbas
 
 __all__ = [
-    'powerset', 'split_once', 'higher_order_bba', 'bba_to_series', 'compute_fractal_df'
+    'powerset', 'split_once', 'higher_order_bba', 'compute_fractal_df'
 ]
+
 
 # ------------------------------ 工具函数 ------------------------------ #
 
@@ -56,7 +57,7 @@ def powerset(s: FrozenSet[str]) -> Iterator[FrozenSet[str]]:
 # ------------------------------ 分形核心 ------------------------------ #
 
 # 执行1阶分形，给各个子集均分质量。
-def split_once(bba: Dict[FrozenSet[str], float], _h: int) -> Dict[FrozenSet[str], float]:
+def split_once(bba: BBA, _h: int) -> BBA:
     new_bba: Dict[FrozenSet[str], float] = {}
     for Aj, mass in bba.items():
         # 单元素焦元或空集按原质量保留或均分到子集
@@ -68,14 +69,14 @@ def split_once(bba: Dict[FrozenSet[str], float], _h: int) -> Dict[FrozenSet[str]
         for Ai in powerset(Aj):
             factor = 1.0 / denom
             new_bba[Ai] = new_bba.get(Ai, 0.0) + mass * factor
-    return new_bba
+    return BBA(new_bba)
 
 
 # 执行 h 阶均等分形（迭代 h 次 split_once）。
-def higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]:
+def higher_order_bba(bba: BBA, h: int) -> BBA:
     if h == 0:
         return bba
-    current = bba
+    current: BBA = bba
     for _ in range(h):
         current = split_once(current, h)
     return current
@@ -83,22 +84,17 @@ def higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet
 
 # ------------------------------ I/O 与展示 ------------------------------ #
 
-# 按照指定的焦元顺序，将 bba_dict 转为数值列表，用于构造 DataFrame 行
-def bba_to_series(bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> List[float]:
-    data = {format_set(k): v for k, v in bba.items()}
-    return [data.get(col, 0.0) for col in focal_order]
-
 
 # 计算分形 BBA 的 DataFrame，包含名称和各焦元质量
 def compute_fractal_df(
-        bbas: List[Tuple[str, Dict[FrozenSet[str], float]]],
+        bbas: List[Tuple[str, BBA]],
         focal_cols: List[str],
         h: int
 ) -> pd.DataFrame:
     rows = []
     for name, bba in bbas:
         fbba = higher_order_bba(bba, h)
-        rows.append([f"{name}_h{h}"] + bba_to_series(fbba, focal_cols))
+        rows.append([f"{name}_h{h}"] + fbba.to_series(focal_cols))
     return pd.DataFrame(rows, columns=["BBA"] + focal_cols).round(4)
 
 

@@ -9,19 +9,20 @@ from __future__ import annotations
 import math
 import os
 from itertools import combinations
-from typing import Dict, FrozenSet, List, Tuple, Optional
+from typing import FrozenSet, List, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# 依赖本项目内现成工具函数 / 模块
 from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
+# 依赖本项目内现成工具函数 / 模块
+from utility.bba import BBA
 
 _LOG_BASE: float = 2.0  # 对数底数，默认为 2.0
 _LOG_FN = (lambda x: math.log(x, _LOG_BASE)) if _LOG_BASE != math.e else math.log
 
 
-def b_divergence(m1: Dict[FrozenSet[str], float], m2: Dict[FrozenSet[str], float]) -> float:
+def b_divergence(m1: BBA, m2: BBA) -> float:
     """计算两条 BBA 的 B 散度"""
 
     # ----------- 构造 2^N 数据结构 ----------- #
@@ -77,7 +78,7 @@ def b_divergence(m1: Dict[FrozenSet[str], float], m2: Dict[FrozenSet[str], float
     return div if div > 0 else 0.0
 
 
-def divergence_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd.DataFrame:
+def divergence_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
     """生成对称 B 散度矩阵"""
     names = [n for n, _ in bbas]
     size = len(names)

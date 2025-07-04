@@ -25,6 +25,7 @@ import pandas as pd
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import initialize_empty_cluster
 from divergence.rd_ccjs import rd_ccjs_metric
+from utility.bba import BBA
 
 
 def _calc_rd(
@@ -40,8 +41,8 @@ def _calc_rd(
     records = []
     for p in param_values:
         for a in alphas:
-            m1 = {frozenset({"A"}): a, frozenset({"B"}): 1 - a}
-            m2 = {frozenset({"A"}): 0.0001, frozenset({"B"}): 0.9999}
+            m1 = BBA({frozenset({"A"}): a, frozenset({"B"}): 1 - a})
+            m2 = BBA({frozenset({"A"}): 0.0001, frozenset({"B"}): 0.9999})
 
             c1 = initialize_empty_cluster("Clus1")
             c1.add_bba("m1", m1)

@@ -6,16 +6,17 @@
 
 import math
 import os
-from typing import Dict, FrozenSet, List, Tuple, Optional
+from typing import List, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# 依赖本项目内现成工具函数 / 模块
 from divergence.b_divergence import b_divergence  # type: ignore
+# 依赖本项目内现成工具函数 / 模块
+from utility.bba import BBA
 
 
-def rb_divergence(m1: Dict[FrozenSet[str], float], m2: Dict[FrozenSet[str], float]) -> float:
+def rb_divergence(m1: BBA, m2: BBA) -> float:
     """计算两条 BBA 的 RB 散度"""
     b11 = b_divergence(m1, m1)
     b22 = b_divergence(m2, m2)
@@ -24,7 +25,7 @@ def rb_divergence(m1: Dict[FrozenSet[str], float], m2: Dict[FrozenSet[str], floa
     return math.sqrt(max(0.0, min(rb, 1.0)))
 
 
-def divergence_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd.DataFrame:
+def divergence_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
     """生成 RB 散度矩阵"""
     names = [n for n, _ in bbas]
     size = len(names)

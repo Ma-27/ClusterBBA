@@ -37,20 +37,21 @@ plot_heatmap(met_df, default_name='Example_3_3.csv', title='D_CCJS Metric Heatma
 
 import math
 import os
-from typing import Dict, FrozenSet, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from config import EPS
-# 依赖本项目内现成工具函数 / 模块
 from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
+# 依赖本项目内现成工具函数 / 模块
+from utility.bba import BBA
 
 
 # 计算两簇之间的 D_CCJS divergence（新定义）
 def d_ccjs_divergence(
-        m_p: Dict[FrozenSet[str], float],
-        m_q: Dict[FrozenSet[str], float],
+        m_p: BBA,
+        m_q: BBA,
         n_p: int,
         n_q: int
 ) -> float:
@@ -77,8 +78,8 @@ def d_ccjs_divergence(
 # 目前的构造度量 (Metric)：参考 RB 论文，将 CCJS 散度转换为度量
 # RB_XY = sqrt(|D(XX) + D(YY) - 2 D(XY)| / 2)
 def d_ccjs_metric(
-        m_p: Dict[FrozenSet[str], float],
-        m_q: Dict[FrozenSet[str], float],
+        m_p: BBA,
+        m_q: BBA,
         n_p: int,
         n_q: int
 ) -> float:
@@ -94,7 +95,7 @@ def d_ccjs_metric(
 
 # 生成对称 D_CCJS divergence 矩阵
 def divergence_matrix(
-        bbas: List[Tuple[str, Dict[FrozenSet[str], float]]],
+        bbas: List[Tuple[str, BBA]],
         sizes: Dict[str, int]
 ) -> pd.DataFrame:
     names = [name for name, _ in bbas]
@@ -113,7 +114,7 @@ def divergence_matrix(
 
 # 生成 D_CCJS metric 矩阵
 def metric_matrix(
-        bbas: List[Tuple[str, Dict[FrozenSet[str], float]]],
+        bbas: List[Tuple[str, BBA]],
         sizes: Dict[str, int]
 ) -> pd.DataFrame:
     names = [name for name, _ in bbas]

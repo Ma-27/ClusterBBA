@@ -23,6 +23,7 @@ from cluster.one_cluster import initialize_empty_cluster
 from divergence.bjs import bjs_metric
 from divergence.metric_test import run_all_tests
 from divergence.rd_ccjs import rd_ccjs_metric, metric_matrix
+from utility.bba import BBA
 
 
 # ------------------------------ 核心计算 ------------------------------ #
@@ -31,8 +32,8 @@ def compute_distances(alphas: List[float]) -> pd.DataFrame:
     """返回给定 α 序列下的 RD_CCJS 与 BJS 距离数据表"""
     records = []
     for a in alphas:
-        m1 = {frozenset({"A"}): a, frozenset({"B"}): 1 - a}
-        m2 = {frozenset({"A"}): 0.0000, frozenset({"B"}): 1.0000}
+        m1 = BBA({frozenset({"A"}): a, frozenset({"B"}): 1 - a})
+        m2 = BBA({frozenset({"A"}): 0.0000, frozenset({"B"}): 1.0000})
 
         c1 = initialize_empty_cluster("Clus1")
         c1.add_bba("m1", m1)
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     test_alphas = [0.0, 0.5, 1.0]
     clusters = []
     for idx, a in enumerate(test_alphas, start=1):
-        m = {frozenset({"A"}): a, frozenset({"B"}): 1 - a}
+        m = BBA({frozenset({"A"}): a, frozenset({"B"}): 1 - a})
         c = initialize_empty_cluster(f"Clus{idx}")
         c.add_bba(f"m{idx}", m)
         clusters.append(c)

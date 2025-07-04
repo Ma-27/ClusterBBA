@@ -36,11 +36,12 @@ from typing import Dict, FrozenSet, Iterable, List
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster  # type: ignore
 from config import SCALE_DELTA, SCALE_EPSILON
 # 分形运算可采用不同的分形办法，默认使用 fractal_average
 from fractal.fractal_average import higher_order_bba  # type: ignore
+# 依赖本项目内现成工具函数 / 模块
+from utility.bba import BBA
 
 __all__ = [
     "rd_ccjs_metric",
@@ -93,13 +94,13 @@ def _scale_weights(cluster: Cluster, delta: float = SCALE_DELTA, epsilon: float 
     return {fs: v / total for fs, v in votes.items()}
 
 
-def _aligned_centroid(cluster: Cluster, H: int) -> Dict[FrozenSet[str], float]:
+def _aligned_centroid(cluster: Cluster, H: int) -> BBA:
     """将簇心对齐到全局最大分形阶 ``H``。"""
-    centroid = cluster.get_centroid() or {}
+    centroid: BBA = cluster.get_centroid() or BBA()
     diff = max(H - cluster.h, 0)
     if diff == 0:
         return centroid
-    return higher_order_bba(centroid, diff)
+    return BBA(higher_order_bba(centroid, diff))
 
 
 def _max_fractal_order(clusters: Iterable[Cluster]) -> int:
