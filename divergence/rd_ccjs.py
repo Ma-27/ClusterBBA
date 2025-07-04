@@ -12,8 +12,8 @@
 - ``rd_ccjs_metric(clus_p, clus_q, H) -> float``
 - ``divergence_matrix(clusters) -> pd.DataFrame``
 - ``metric_matrix(clusters) -> pd.DataFrame``
-- ``save_csv(dist_df, out_path=None, default_name='Example_0_1.csv', label='divergence')``
-- ``plot_heatmap(dist_df, out_path=None, default_name='Example_0_1.csv', title=None, label='divergence')``
+- ``save_csv(dist_df, out_path=None, default_name='Example_3_3.csv', label='divergence')``
+- ``plot_heatmap(dist_df, out_path=None, default_name='Example_3_3.csv', title=None, label='divergence')``
 
 示例
 ^^^^
@@ -36,6 +36,7 @@ from typing import Dict, FrozenSet, Iterable, List
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster  # type: ignore
 from config import SCALE_DELTA, SCALE_EPSILON
 # 分形运算可采用不同的分形办法，默认使用 fractal_average
@@ -43,7 +44,6 @@ from fractal.fractal_average import higher_order_bba  # type: ignore
 
 __all__ = [
     "rd_ccjs_metric",
-    "divergence_matrix",
     "metric_matrix",
     "save_csv",
     "plot_heatmap",
@@ -146,12 +146,12 @@ def rd_ccjs_metric(clus_p: Cluster, clus_q: Cluster, H: int, delta: float = SCAL
 
 
 # ---------------------------------------------------------------------------
-# 矩阵计算
+# Convenience: matrices / CSV / visualisation
 # ---------------------------------------------------------------------------
 
-def divergence_matrix(clusters: List[Cluster], delta: float = SCALE_DELTA,
-                      epsilon: float = SCALE_EPSILON, ) -> pd.DataFrame:
-    """生成 ``RD_CCJS`` 距离矩阵，可自定义平滑参数。"""
+def metric_matrix(clusters: List[Cluster], delta: float = SCALE_DELTA,
+                  epsilon: float = SCALE_EPSILON, ) -> pd.DataFrame:
+    """生成 ``RD_CCJS`` 距离矩阵，可自定义平滑参数。这也是该脚本最核心的API。"""
     names = [c.name for c in clusters]
     size = len(clusters)
     H = _max_fractal_order(clusters)
@@ -165,18 +165,10 @@ def divergence_matrix(clusters: List[Cluster], delta: float = SCALE_DELTA,
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 
-# ``metric_matrix`` 与 ``divergence_matrix`` 在此等价，为接口兼容保留
-metric_matrix = divergence_matrix
-
-
-# ---------------------------------------------------------------------------
-# I/O 輔助
-# ---------------------------------------------------------------------------
-
 def save_csv(
         dist_df: pd.DataFrame,
         out_path: str | None = None,
-        default_name: str = "Example_0_1.csv",
+        default_name: str = "Example_3_3.csv",
         label: str = "divergence",
         index_label: str = "Cluster",
 ) -> None:
@@ -193,7 +185,7 @@ def save_csv(
 def plot_heatmap(
         dist_df: pd.DataFrame,
         out_path: str | None = None,
-        default_name: str = "Example_0_1.csv",
+        default_name: str = "Example_3_3.csv",
         title: str | None = None,
         label: str = "divergence",
 ) -> None:

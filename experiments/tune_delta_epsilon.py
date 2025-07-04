@@ -15,6 +15,7 @@ from typing import Tuple
 
 import numpy as np
 
+# 依赖本项目内现成工具函数 / 模块
 from experiments.example_1_1 import compute_distances
 
 ALPHAS = list(np.linspace(0.0, 1.0, 101))

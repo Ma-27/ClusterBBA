@@ -10,15 +10,15 @@ import sys
 
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from divergence.d_ccjs import metric_matrix, save_csv, divergence_matrix  # type: ignore
 from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
-# 依赖本项目内现成工具函数 / 模块
 from utility.io import load_bbas  # type: ignore
 
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # todo 默认示例文件名，可根据实际情况修改
-    default_name = 'Example_0_5.csv'
+    default_name = 'Example_3_3.csv'
 
     # 支持通过命令行参数指定超参数 n
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name

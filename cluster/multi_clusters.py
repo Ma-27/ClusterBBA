@@ -10,6 +10,7 @@ from __future__ import annotations
 import random
 from typing import Dict, List, Tuple, Optional
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
 from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS
 from divergence.bjs import bjs_metric

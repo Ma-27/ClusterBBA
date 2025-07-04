@@ -76,6 +76,11 @@ def divergence_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 
+# ---------------------------------------------------------------------------
+# Convenience: matrices / CSV / visualisation
+# ---------------------------------------------------------------------------
+
+
 # 生成 metric 矩阵
 def metric_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd.DataFrame:
     names = [n for n, _ in bbas]

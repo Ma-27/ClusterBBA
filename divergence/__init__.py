@@ -5,6 +5,8 @@ Package initialization for divergence_calculation and divergence metric
 
 __all__ = [
     "bjs",
+    "b_divergence",
+    "rb_divergence",
     "d_ccjs",
     "rd_ccjs",
     "metric_test",

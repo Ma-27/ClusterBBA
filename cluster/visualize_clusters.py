@@ -12,6 +12,7 @@ from typing import Iterable, List, Optional
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster
 from divergence.rd_ccjs import metric_matrix
 

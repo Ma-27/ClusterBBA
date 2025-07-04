@@ -9,6 +9,7 @@ if BASE_DIR not in sys.path:
 
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.multi_clusters import MultiClusters  # type: ignore
 from divergence.rd_ccjs import metric_matrix  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore

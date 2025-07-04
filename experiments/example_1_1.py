@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import initialize_empty_cluster
 from config import SCALE_DELTA, SCALE_EPSILON
 from divergence.bjs import bjs_metric
