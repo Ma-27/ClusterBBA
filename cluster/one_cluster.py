@@ -45,7 +45,7 @@ from typing import Dict, List, Tuple, Optional
 import pandas as pd
 
 from divergence.bjs import metric_matrix  # type: ignore
-from fractal.fractal_average import higher_order_bba  # type: ignore
+from fractal.fractal_max_entropy import higher_order_bba  # type: ignore
 from mean.mean_bba import compute_avg_bba  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
 # 依赖本项目内现成工具函数 / 模块

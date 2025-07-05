@@ -38,8 +38,8 @@ import pandas as pd
 
 from cluster.one_cluster import Cluster  # type: ignore
 from config import SCALE_DELTA, SCALE_EPSILON
-# 分形运算可采用不同的分形办法，默认使用 fractal_average
-from fractal.fractal_average import higher_order_bba  # type: ignore
+# 分形运算可采用不同的分形办法，默认使用 fractal_max_entropy
+from fractal.fractal_max_entropy import higher_order_bba  # type: ignore
 # 依赖本项目内现成工具函数 / 模块
 from utility.bba import BBA
 
