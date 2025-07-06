@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from utility.plot_style import apply_style
+
+apply_style()
+
 
 # 定义 KL 散度函数
 def kl_divergence(p, q):

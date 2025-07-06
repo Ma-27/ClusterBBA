@@ -33,6 +33,7 @@ save_csv(met_df, default_name='Example_3_3.csv', label='metric')
 plot_heatmap(div_df, default_name='Example_3_3.csv', title='D_CCJS Divergence Heatmap', label='divergence')
 plot_heatmap(met_df, default_name='Example_3_3.csv', title='D_CCJS Metric Heatmap', label='metric')
 ```
+D_CCJS无法成为一个真正的度量，因此已经被弃用。在命名规范中，只有原文中没有出现过的、符合度量公理的修改才被命名为metric。
 """
 
 import math
@@ -42,19 +43,17 @@ from typing import Dict, List, Tuple, Optional
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from config import EPS
-from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
-# 依赖本项目内现成工具函数 / 模块
+from config import EPS, LOG_BASE
 from utility.bba import BBA
+# 依赖本项目内现成工具函数 / 模块
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
+
+apply_style()
 
 
 # 计算两簇之间的 D_CCJS divergence（新定义）
-def d_ccjs_divergence(
-        m_p: BBA,
-        m_q: BBA,
-        n_p: int,
-        n_q: int
-) -> float:
+def d_ccjs_divergence(m_p: BBA, m_q: BBA, n_p: int, n_q: int) -> float:
     # 规模权重 w_p, w_q
     w_p = n_p / (n_p + n_q)
     w_q = n_q / (n_p + n_q)
@@ -69,28 +68,9 @@ def d_ccjs_divergence(
         # 混合分布 M(A) = 0.5 * p + 0.5 * q
         M = 0.5 * p + 0.5 * q
         # 按新公式累加
-        div += w_p * p * math.log(p / M, 2) + w_q * q * math.log(q / M, 2)
+        div += w_p * p * math.log(p / M, LOG_BASE) + w_q * q * math.log(q / M, LOG_BASE)
     # 散度范围裁剪到 [0,1]
     return max(0.0, min(div, 1.0))
-
-
-# fixme 对应度量 = 根号(divergence),考虑其他构造度量的方式
-# 目前的构造度量 (Metric)：参考 RB 论文，将 CCJS 散度转换为度量
-# RB_XY = sqrt(|D(XX) + D(YY) - 2 D(XY)| / 2)
-def d_ccjs_metric(
-        m_p: BBA,
-        m_q: BBA,
-        n_p: int,
-        n_q: int
-) -> float:
-    # 第一种构造方式，直接取根号 CCJS
-    # return math.sqrt(d_ccjs_divergence(m_p, m_q, n_p, n_q))
-
-    # 第二种方式，参考 RB 论文构造度量
-    d_pp = d_ccjs_divergence(m_p, m_p, n_p, n_p)
-    d_qq = d_ccjs_divergence(m_q, m_q, n_q, n_q)
-    d_pq = d_ccjs_divergence(m_p, m_q, n_p, n_q)
-    return math.sqrt(abs(d_pp + d_qq - 2 * d_pq) / 2)
 
 
 # 生成对称 D_CCJS divergence 矩阵
@@ -110,6 +90,20 @@ def divergence_matrix(
 # ---------------------------------------------------------------------------
 # Convenience: matrices / CSV / visualisation
 # ---------------------------------------------------------------------------
+
+
+# fixme 对应度量 构造都是不成功的，这个函数已经被弃用
+# 目前的构造度量 (Metric)：参考 RB 论文，将 CCJS 散度转换为度量
+# RB_XY = sqrt(|D(XX) + D(YY) - 2 D(XY)| / 2)
+def d_ccjs_metric(m_p: BBA, m_q: BBA, n_p: int, n_q: int) -> float:
+    # 第一种构造方式，直接取根号 CCJS
+    # return math.sqrt(d_ccjs_divergence(m_p, m_q, n_p, n_q))
+
+    # 第二种方式，参考 RB 论文构造度量
+    d_pp = d_ccjs_divergence(m_p, m_p, n_p, n_p)
+    d_qq = d_ccjs_divergence(m_q, m_q, n_q, n_q)
+    d_pq = d_ccjs_divergence(m_p, m_q, n_p, n_q)
+    return math.sqrt(abs(d_pp + d_qq - 2 * d_pq) / 2)
 
 
 # 生成 D_CCJS metric 矩阵
@@ -168,5 +162,4 @@ def plot_heatmap(
     ax.set_yticks(range(len(dist_df)))
     ax.set_yticklabels(dist_df.index)
     ax.set_title(title)
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=300)
+    savefig(fig, out_path)

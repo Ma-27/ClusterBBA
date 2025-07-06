@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """项目全局超参数配置"""
 
+# 对数底数统一为 2
+LOG_BASE: float = 2.0
+
 # RD_CCJS 权重平滑参数
 SCALE_DELTA: float = 8e-3
 SCALE_EPSILON: float = 4e-3

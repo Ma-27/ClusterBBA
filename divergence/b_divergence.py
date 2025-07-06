@@ -2,6 +2,7 @@
 """B 散度计算模块
 ===================
 复现论文《A new divergence measure for belief functions in D–S evidence theory for multisensor data fusion》中的 B 散度算法，接口与 ``bjs.py`` 类似，可被导入调用。
+B divergence并非一个真正的度量。所以并没有提供metric接口。函数命名遵照原文，原文中命名为divergence，则函数名也为divergence。在命名规范中，只有原文中没有出现过的、符合度量公理的修改才被命名为metric。
 """
 
 from __future__ import annotations
@@ -14,11 +15,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
-from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
+from config import LOG_BASE
 from utility.bba import BBA
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
 
-_LOG_BASE: float = 2.0  # 对数底数，默认为 2.0
-_LOG_FN = (lambda x: math.log(x, _LOG_BASE)) if _LOG_BASE != math.e else math.log
+apply_style()
 
 
 def b_divergence(m1: BBA, m2: BBA) -> float:
@@ -69,8 +71,8 @@ def b_divergence(m1: BBA, m2: BBA) -> float:
             # 中间分布
             M = p + q
             # 按公式 (12) 分别计算两部分并累加
-            div += 0.5 * p * _LOG_FN(2 * p / M) * (inter / union)
-            div += 0.5 * q * _LOG_FN(2 * q / M) * (inter / union)
+            div += 0.5 * p * math.log(2 * p / M, LOG_BASE) * (inter / union)
+            div += 0.5 * q * math.log(2 * q / M, LOG_BASE) * (inter / union)
 
     return div if div > 0 else 0.0
 
@@ -132,5 +134,4 @@ def plot_heatmap(
     ax.set_yticks(range(len(dist_df)))
     ax.set_yticklabels(dist_df.index)
     ax.set_title(title)
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=600)
+    savefig(fig, out_path)

@@ -13,6 +13,11 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
+
+apply_style()
+
 # 确保包导入路径指向项目根目录
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if BASE_DIR not in sys.path:
@@ -64,12 +69,12 @@ def _plot_history(history: EntropyHistory,
     plt.xlabel('Step')
     plt.ylabel('Centroid Deng Entropy')
     plt.legend()
-    plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=600)
+        savefig(save_path)
+    else:
+        savefig('entropy_history.png')
     if show:
         plt.show()
-    plt.close()
 
 
 # ------------------------------ 主函数 ------------------------------ #

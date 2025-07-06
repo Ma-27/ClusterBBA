@@ -31,6 +31,7 @@ import sys
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
+from config import LOG_BASE
 from utility.bba import BBA
 from utility.io import load_bbas
 
@@ -50,7 +51,7 @@ def deng_entropy(bba: BBA) -> float:
             continue
         denom = (2 ** len(focal)) - 1
         # 理论上 denom>=1，此处无须额外判断
-        entropy -= mass * math.log2(mass / denom)
+        entropy -= mass * math.log(mass / denom, LOG_BASE)
     return entropy
 
 

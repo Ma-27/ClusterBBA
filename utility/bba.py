@@ -70,10 +70,17 @@ class BBA(dict):
     # ------------------------ I/O 助手 ------------------------ #
     @staticmethod
     def parse_focal_set(cell: str) -> FrozenSet[str]:
-        """解析集合字符串为 ``frozenset``。支持 ``"{A ∪ B}"`` 等格式。"""
+        """解析集合字符串为 ``frozenset``。
+
+        兼容诸如 ``"m({A})"`` 或 ``"m({A ∪ B})"`` 等带有 ``m(...)`` 前缀的格
+        式，以方便直接处理实验 CSV 表头中的列名。
+        """
         cell = cell.strip()
         if not cell or cell in {"∅", "{}"}:
             return frozenset()
+        # 去除 m(...) 包装
+        if cell.lower().startswith("m(") and cell.endswith(")"):
+            cell = cell[2:-1].strip()
         if cell.startswith("{") and cell.endswith("}"):
             cell = cell[1:-1]
         items = [e.strip() for e in cell.split("∪") if e.strip()]

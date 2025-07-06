@@ -17,12 +17,12 @@ from divergence.metric_test import (
     test_symmetry,
     test_triangle_inequality,
 )  # type: ignore
-from divergence.rd_ccjs import metric_matrix, save_csv  # type: ignore
+from divergence.rd_ccjs import divergence_matrix, save_csv  # type: ignore
 from utility.io import load_bbas  # type: ignore
 
 if __name__ == "__main__":
     # todo 默认示例文件名，可根据实际情况修改
-    default_name = "Example_1_2.csv"
+    default_name = "Example_3_3_3.csv"
     # 处理命令行参数：CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
@@ -43,8 +43,8 @@ if __name__ == "__main__":
     # todo 这里硬性指定簇的名称和成员列表，请根据数据集对应的实际情况修改
     DEFAULT_CLUSTER_ASSIGNMENT: Dict[str, List[str]] = {
         "Clus1": ["m1"],
-        "Clus2": ["m2"],
-        "Clus3": ["m3"],
+        "Clus2": ["m2", "m3""m4"],
+        "Clus3": ["m5"],
     }
 
     # 初始化簇
@@ -60,14 +60,14 @@ if __name__ == "__main__":
     clus_list = list(clusters.values())
 
     # 计算 RD_CCJS 距离矩阵
-    dist_df = metric_matrix(clus_list)
+    dist_df = divergence_matrix(clus_list)
 
     print("\n----- RD_CCJS Metric Matrix -----")
     print(dist_df.to_string())
 
-    save_csv(dist_df, default_name=csv_name, label="metric")
+    save_csv(dist_df, default_name=csv_name, label="divergence")
     print(
-        f"结果 CSV: experiments_result/rd_ccjs_metric_{os.path.splitext(csv_name)[0]}.csv"
+        f"结果 CSV: experiments_result/rd_ccjs_divergence_{os.path.splitext(csv_name)[0]}.csv"
     )
 
     # 1. 测试对称性

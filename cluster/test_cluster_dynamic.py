@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""动态簇测试脚本
+================
+验证增量添加 BBA 时簇内计算是否正确。"""
+
 import os
 import sys
 from typing import Dict, List, Tuple

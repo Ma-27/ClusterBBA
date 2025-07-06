@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""簇静态测试脚本
+================
+验证单簇在静态条件下的基本操作流程。"""
+
 import os
 import sys
 from typing import Dict, List, Tuple

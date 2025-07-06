@@ -16,8 +16,7 @@ import pandas as pd
 # 依赖本项目内现成工具函数 / 模块
 from cluster.multi_clusters import MultiClusters
 from cluster.one_cluster import Cluster
-from cluster.visualize_clusters import visualize_clusters
-from divergence.rd_ccjs import metric_matrix
+from divergence.rd_ccjs import divergence_matrix
 from mean.mean_divergence import average_divergence
 from utility.io import load_bbas
 
@@ -36,7 +35,7 @@ def run_experiment(csv_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, float, Li
         assignments.append([name, target])
 
     clusters = list(mc._clusters.values())
-    dist_df = metric_matrix(clusters)
+    dist_df = divergence_matrix(clusters)
     avg_rd = average_divergence(dist_df)
 
     assign_df = pd.DataFrame(assignments, columns=["BBA", "Cluster"])
@@ -64,4 +63,4 @@ if __name__ == "__main__":
     print(f"\n平均 RD_CCJS: {avg_rd:.6f}")
 
     # 可视化簇划分结果
-    visualize_clusters(clusters)
+    # visualize_clusters(clusters)

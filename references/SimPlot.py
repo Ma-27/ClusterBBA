@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import make_interp_spline  # spline
 
+from utility.plot_style import apply_style
+
+apply_style()
+
 
 def BJS(a, b):  # 计算BPA分布情况 基于BJS
     Sum = 0

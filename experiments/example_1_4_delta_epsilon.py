@@ -22,10 +22,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import initialize_empty_cluster
-from divergence.rd_ccjs import rd_ccjs_metric
+from divergence.rd_ccjs import rd_ccjs_divergence
 from utility.bba import BBA
+# 依赖本项目内现成工具函数 / 模块
+from utility.plot_labels import LABEL_RD_CCJS, LABEL_ALPHA
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
+
+apply_style()
 
 
 def _calc_rd(
@@ -50,10 +55,10 @@ def _calc_rd(
             c2.add_bba("m2", m2)
 
             if vary_delta:
-                rd = rd_ccjs_metric(c1, c2, max(c1.h, c2.h), delta=p, epsilon=epsilon)
+                rd = rd_ccjs_divergence(c1, c2, max(c1.h, c2.h), delta=p, epsilon=epsilon)
                 records.append([a, p, rd])
             else:
-                rd = rd_ccjs_metric(c1, c2, max(c1.h, c2.h), delta=delta, epsilon=p)
+                rd = rd_ccjs_divergence(c1, c2, max(c1.h, c2.h), delta=delta, epsilon=p)
                 records.append([a, p, rd])
 
     col = "delta" if vary_delta else "epsilon"
@@ -71,9 +76,9 @@ def plot_surface(df: pd.DataFrame, var: str, out_path: str) -> None:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     ax.plot_surface(X, Y, Z, cmap="viridis")
-    ax.set_xlabel("alpha")
+    ax.set_xlabel(LABEL_ALPHA)
     ax.set_ylabel(var)
-    ax.set_zlabel("RD_CCJS")
+    ax.set_zlabel(LABEL_RD_CCJS)
 
     # 设定坐标轴范围均从 0 开始，确保三维图共享同一原点
     ax.set_xlim(0, float(pivot.columns.astype(float).max()))
@@ -83,9 +88,7 @@ def plot_surface(df: pd.DataFrame, var: str, out_path: str) -> None:
     # 设置视角，仰角xx°，方位角xx°
     ax.view_init(elev=30, azim=45)
 
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=600)
-    plt.close()
+    savefig(fig, out_path)
 
 
 if __name__ == "__main__":
@@ -112,4 +115,4 @@ if __name__ == "__main__":
         os.path.join(res_dir, "example_1_4_epsilon.png"),
     )
 
-    print("RD_CCJS sensitivity experiment finished.")
+    print(f"{LABEL_RD_CCJS}sensitivity experiment finished.")

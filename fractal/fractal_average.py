@@ -34,8 +34,8 @@ from typing import Dict, FrozenSet, List, Tuple, Iterator
 
 import pandas as pd
 
-from config import SEG_DEPTH
 # 依赖本项目内现成工具函数 / 模块
+from config import SEG_DEPTH
 from utility.bba import BBA
 from utility.io import load_bbas
 

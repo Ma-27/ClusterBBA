@@ -11,7 +11,7 @@ import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
 from cluster.multi_clusters import MultiClusters  # type: ignore
-from divergence.rd_ccjs import metric_matrix  # type: ignore
+from divergence.rd_ccjs import divergence_matrix  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
 from utility.io import load_bbas  # type: ignore
 
@@ -34,7 +34,7 @@ def _print_distance_info(mc: MultiClusters) -> None:
         print("当前仅一个簇，距离矩阵省略")
     else:
         # 计算簇-簇距离矩阵并打印
-        dist_df = metric_matrix(clusters)
+        dist_df = divergence_matrix(clusters)
         print("簇间 RD_CCJS 距离矩阵：")
         print(dist_df.to_string(float_format="%.4f"))
         avg_rd = average_divergence(dist_df)

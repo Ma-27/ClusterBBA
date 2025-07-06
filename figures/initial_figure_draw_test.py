@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from utility.plot_style import apply_style
+
+apply_style()
+
 
 # 定义自造函数，用于生成各子图的大致曲线形状
 def func_a1(x):
