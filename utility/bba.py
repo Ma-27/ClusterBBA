@@ -9,13 +9,18 @@
 from __future__ import annotations
 
 import itertools
-from typing import Dict, FrozenSet, Iterable, List, Optional
+from typing import Dict, FrozenSet, Iterable, List, Optional, Tuple
 
 __all__ = ["BBA"]
 
 
 class BBA(dict):
     """单条基本概率分配。"""
+
+    @staticmethod
+    def _set_sort_key(fs: FrozenSet[str]) -> Tuple[int, Tuple[str, ...]]:
+        """焦元排序辅助：先按大小再按字母顺序"""
+        return (len(fs), tuple(sorted(fs)))
 
     frame: FrozenSet[str]
 
@@ -41,7 +46,8 @@ class BBA(dict):
                 if fs not in expanded:
                     expanded[fs] = 0.0
 
-        super().__init__(expanded)
+        ordered = {fs: expanded[fs] for fs in sorted(expanded, key=self._set_sort_key)}
+        super().__init__(ordered)
 
     # ------------------------ 常用接口 ------------------------ #
     def get_mass(self, fs: Iterable[str] | FrozenSet[str]) -> float:
@@ -50,8 +56,9 @@ class BBA(dict):
         return float(super().get(key, 0.0))
 
     def focal_sets(self) -> List[FrozenSet[str]]:
-        """返回所有质量非零的焦元（不含空集）。"""
-        return [fs for fs, m in self.items() if fs and m != 0]
+        """返回所有质量非零的焦元（不含空集），按排列数升序。"""
+        ordered = sorted(self.keys(), key=self._set_sort_key)
+        return [fs for fs in ordered if fs and self.get(fs, 0.0) != 0]
 
     @staticmethod
     def subset_cardinality(fs: Iterable[str] | FrozenSet[str]) -> int:
@@ -94,8 +101,9 @@ class BBA(dict):
         return "{" + " ∪ ".join(sorted(fs)) + "}"
 
     def to_formatted_dict(self) -> Dict[str, float]:
-        """按字符串焦元返回 ``{str: mass}`` 字典，便于构造 DataFrame。"""
-        return {self.format_set(fs): float(m) for fs, m in self.items()}
+        """按字符串焦元返回 ``{str: mass}`` 字典，焦元顺序按排列数升序。"""
+        ordered = sorted(self.keys(), key=self._set_sort_key)
+        return {self.format_set(fs): float(self[fs]) for fs in ordered}
 
     def to_series(self, order: List[str]) -> List[float]:
         """根据给定顺序生成质量值列表，不存在的焦元补 0。"""

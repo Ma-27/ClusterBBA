@@ -22,7 +22,7 @@ from utility.io import load_bbas  # type: ignore
 
 if __name__ == "__main__":
     # todo 默认示例文件名，可根据实际情况修改
-    default_name = "Example_3_3_3.csv"
+    default_name = "Example_3_2_3.csv"
     # 处理命令行参数：CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
@@ -42,9 +42,9 @@ if __name__ == "__main__":
 
     # todo 这里硬性指定簇的名称和成员列表，请根据数据集对应的实际情况修改
     DEFAULT_CLUSTER_ASSIGNMENT: Dict[str, List[str]] = {
-        "Clus1": ["m1"],
-        "Clus2": ["m2", "m3""m4"],
-        "Clus3": ["m5"],
+        "Clus1": ["m1", "m2", "m3", "m4"],
+        "Clus2": ["m5", "m6", "m7", "m8"],
+        "Clus3": ["m9", "m10", "m11", "m12"],
     }
 
     # 初始化簇

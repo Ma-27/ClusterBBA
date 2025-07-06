@@ -49,7 +49,7 @@ def print_cluster_elements(csv_path: str) -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     # todo 默认配置，根据不同的 CSV 文件或 BBA 簇修改
-    example_name = "Example_3_1.csv"
+    example_name = "Example_3_7.csv"
 
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     default_csv = os.path.join(base_dir, "data", "examples", example_name)

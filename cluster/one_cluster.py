@@ -166,7 +166,10 @@ class Cluster:
         formatted = ", ".join(f'"{n}"' for n in element_names)
         print(f'Elements: {formatted}')
 
-        focal_sets = list((self._centroid or {}).keys())
+        if isinstance(self._centroid, BBA):
+            focal_sets = self._centroid.theta_powerset()
+        else:
+            focal_sets = []
 
         # 簇心质量表
         if self._centroid:
