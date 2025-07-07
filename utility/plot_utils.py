@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -43,7 +45,19 @@ def savefig(fig_or_path: str | plt.Figure, path: str | None = None, *, show: boo
     else:
         fig = plt.gcf()
         out = fig_or_path
-    fig.tight_layout()
+    # 某些情况下三维坐标轴无法很好地应用 tight_layout，因此这里忽略相关警告以避免屏幕输出过多提示。
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=".*Tight layout not applied.*",
+            category=UserWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            message=".*figure layout has changed.*",
+            category=UserWarning,
+        )
+        fig.tight_layout()
     if out is not None:
         fig.savefig(out)
     else:
