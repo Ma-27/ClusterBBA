@@ -13,6 +13,8 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
+from utility.formula_labels import LABEL_DENG_ENTROPY
 from utility.plot_style import apply_style
 from utility.plot_utils import savefig
 
@@ -23,7 +25,6 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-# 依赖本项目内现成工具函数 / 模块
 from cluster.multi_clusters import MultiClusters  # type: ignore
 from entropy.deng_entropy import deng_entropy
 from utility.io import load_bbas  # type: ignore
@@ -52,7 +53,7 @@ def _record_entropies(step: int, mc: MultiClusters, history: EntropyHistory) -> 
             vals.append(float('nan'))
 
     # 控制台打印
-    print(f"Step {step}:")
+    print(f"Step {step} Centroid Deng Entropy:")
     for clus in current_clusters:
         ent = history[clus.name][-1]
         print(f"  {clus.name}: {ent:.4f}")
@@ -67,7 +68,7 @@ def _plot_history(history: EntropyHistory,
     for cname, vals in history.items():
         plt.plot(steps, vals, marker='o', label=cname)
     plt.xlabel('Step')
-    plt.ylabel('Centroid Deng Entropy')
+    plt.ylabel(LABEL_DENG_ENTROPY)
     plt.legend()
     if save_path:
         savefig(save_path)
@@ -80,7 +81,7 @@ def _plot_history(history: EntropyHistory,
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':  # pragma: no cover
     # todo 默认示例，可按需修改
-    example_name = 'Example_3_3_3.csv'
+    example_name = 'Example_3_7.csv'
 
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     default_csv = os.path.join(base_dir, 'data', 'examples', example_name)

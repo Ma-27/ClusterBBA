@@ -26,7 +26,7 @@ from cluster.one_cluster import initialize_empty_cluster
 from divergence.rd_ccjs import rd_ccjs_divergence
 from utility.bba import BBA
 # 依赖本项目内现成工具函数 / 模块
-from utility.plot_labels import LABEL_RD_CCJS, LABEL_ALPHA
+from utility.formula_labels import LABEL_RD_CCJS, LABEL_ALPHA
 from utility.plot_style import apply_style
 from utility.plot_utils import savefig
 

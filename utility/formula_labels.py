@@ -8,6 +8,8 @@ __all__ = [
     "LABEL_RB_DIV",
     "LABEL_K",
     "LABEL_ALPHA",
+    "LABEL_DENG_ENTROPY",
+    "LABEL_D_INTRA",
 ]
 
 # 主要散度及度量标签
@@ -17,3 +19,5 @@ LABEL_B_DIV = r"$B$"
 LABEL_RB_DIV = r"$RB$"
 LABEL_K = r"$K$"
 LABEL_ALPHA = r"$\alpha$"
+LABEL_DENG_ENTROPY = r"$E_{d}$"
+LABEL_D_INTRA = r"$D_{intra}$"

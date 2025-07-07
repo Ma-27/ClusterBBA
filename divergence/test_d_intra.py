@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""test_rd_ccjs.py
+"""test_d_intra.py
 
-基于 ``cluster`` 动态加簇过程，计算簇与簇之间的 RD_CCJS 距离矩阵并验证其度量性质。
+基于 ``cluster`` 动态加簇过程，计算每个簇的 ``D_intra``。
 """
 
 import os
@@ -17,43 +17,59 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
-from divergence.metric_test import (
-    test_nonnegativity,
-    test_symmetry,
-    test_triangle_inequality,
-)  # type: ignore
-from divergence.rd_ccjs import divergence_matrix, save_csv  # type: ignore
-from mean.mean_divergence import average_divergence  # type: ignore
-from utility.formula_labels import LABEL_RD_CCJS
+from cluster.multi_clusters import MultiClusters  # type: ignore
+from utility.formula_labels import LABEL_D_INTRA
 from utility.plot_style import apply_style
 from utility.plot_utils import savefig
 from utility.io import load_bbas  # type: ignore
 
 apply_style()
 
-RDHistory = List[float]
+DIHistory = Dict[str, List[float]]
 
 
-def _record_history(step: int, clusters: Dict[str, 'Cluster'], history: RDHistory) -> None:
-    """记录整个簇集的平均 ``RD_CCJS``。"""
+def _calc_intra(clus: Cluster, clusters: List[Cluster]) -> float:
+    """使用 ``MultiClusters`` 的逻辑计算 ``D_intra``。"""
+    val = MultiClusters._calc_intra_divergence(clus, clusters)
+    if val is None:
+        return float('nan')
+    return float(val)
+
+
+def _record_history(step: int, clusters: Dict[str, Cluster], history: DIHistory) -> None:
+    """记录当前各簇的 ``D_intra``。"""
     clus_list = list(clusters.values())
-    dist_df = divergence_matrix(clus_list)
-    avg = average_divergence(dist_df)
-    history.append(avg)
-    print(f"Step {step} Avg RD_CCJS: {avg:.4f}")
+    for clus in clus_list:
+        val = _calc_intra(clus, clus_list)
+        if clus.name not in history:
+            history[clus.name] = [float('nan')] * (step - 1)
+        history[clus.name].append(val)
+    for cname, vals in history.items():
+        if len(vals) < step:
+            vals.append(float('nan'))
+
+    print(f"Step {step} D_intra:")
+    for clus in clus_list:
+        di_val = history[clus.name][-1]
+        if di_val != di_val:
+            print(f"  {clus.name}: None")
+        else:
+            print(f"  {clus.name}: {di_val:.4f}")
+    print()
 
 
-def _plot_history(history: RDHistory, save_path: str | None = None, show: bool = True) -> None:
-    """绘制平均 ``RD_CCJS`` 随时间变化的折线图。"""
-    steps = range(1, len(history) + 1)
-    plt.plot(list(steps), history, marker='o', label=f'Average {LABEL_RD_CCJS}')
+def _plot_history(history: DIHistory, save_path: str | None = None, show: bool = True) -> None:
+    """绘制 ``D_intra`` 随时间变化的折线图。"""
+    steps = range(1, max(len(v) for v in history.values()) + 1)
+    for cname, vals in history.items():
+        plt.plot(steps, vals, marker='o', label=cname)
     plt.xlabel('Step')
-    plt.ylabel(LABEL_RD_CCJS)
+    plt.ylabel(LABEL_D_INTRA)
     plt.legend()
     if save_path:
         savefig(save_path)
     else:
-        savefig('rd_ccjs_history.png')
+        savefig('d_intra_history.png')
     if show:
         plt.show()
 
@@ -88,7 +104,7 @@ if __name__ == "__main__":
     # 初始化簇
     clusters = {name: initialize_empty_cluster(name) for name in DEFAULT_CLUSTER_ASSIGNMENT}
 
-    history: RDHistory = []
+    history: DIHistory = {}
     step = 0
 
     # 按 CSV 顺序动态添加 BBAs
@@ -101,34 +117,30 @@ if __name__ == "__main__":
 
     clus_list = list(clusters.values())
 
-    # 计算 RD_CCJS 距离矩阵
-    dist_df = divergence_matrix(clus_list)
+    print("\n----- D_intra per Cluster -----")
+    results = []
+    for clus in clus_list:
+        di = clus.intra_divergence()
+        if di is None:
+            print(f"{clus.name}: None")
+            results.append([None])
+        else:
+            print(f"{clus.name}: {di:.4f}")
+            results.append([di])
 
-    print("\n----- RD_CCJS Metric Matrix -----")
-    print(dist_df.to_string())
+    df_res = pd.DataFrame(results, index=[c.name for c in clus_list], columns=["D_intra"])
 
-    save_csv(dist_df, default_name=csv_name, label="divergence")
-    print(
-        f"结果 CSV: experiments_result/rd_ccjs_divergence_{os.path.splitext(csv_name)[0]}.csv"
-    )
+    # 保存结果 CSV
+    out_dir = os.path.abspath(os.path.join(base, "..", "experiments_result"))
+    os.makedirs(out_dir, exist_ok=True)
+    out_csv = os.path.join(out_dir, f"d_intra_{os.path.splitext(csv_name)[0]}.csv")
+    df_res.to_csv(out_csv, float_format="%.4f", index_label="Cluster")
+    print(f"结果 CSV: experiments_result/{os.path.basename(out_csv)}")
 
-    # 1. 测试对称性
-    test_symmetry(dist_df)
-
-    # 2. 测试非负性
-    test_nonnegativity(dist_df)
-
-    # 3. 测试三角不等式
-    test_triangle_inequality(dist_df)
-
-    # 绘制平均 RD_CCJS 变化历史
-    res_dir = os.path.abspath(os.path.join(base, '..', 'experiments_result'))
-    os.makedirs(res_dir, exist_ok=True)
     dataset = os.path.splitext(os.path.basename(csv_name))[0]
     suffix = dataset.lower()
     if suffix.startswith('example_'):
         suffix = suffix[len('example_'):]
-    fig_path = os.path.join(res_dir, f'example_{suffix}_rd_ccjs_history.png')
-
+    fig_path = os.path.join(out_dir, f'example_{suffix}_d_intra_history.png')
     _plot_history(history, save_path=fig_path)
     print(f'History figure saved to: {fig_path}')

@@ -23,7 +23,7 @@ from divergence.rb_divergence import rb_divergence
 from divergence.rd_ccjs import rd_ccjs_divergence
 from utility.bba import BBA
 # 依赖本项目内现成工具函数 / 模块
-from utility.plot_labels import (
+from utility.formula_labels import (
     LABEL_RD_CCJS,
     LABEL_BJS,
     LABEL_B_DIV,
