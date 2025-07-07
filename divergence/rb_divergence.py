@@ -2,20 +2,26 @@
 """RB Divergence Calculation Module
 =================================
 复现论文提出的 Reinforced Belief (RB) 散度。依赖 ``b_divergence`` 实现。
+RB divergence是一个真正的度量。函数命名遵照原文，原文中命名为divergence，则函数名也为divergence。在命名规范中，只有原文中没有出现过的、符合度量公理的修改才被命名为metric。
 """
 
 import math
 import os
-from typing import Dict, FrozenSet, List, Tuple, Optional
+from typing import List, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# 依赖本项目内现成工具函数 / 模块
 from divergence.b_divergence import b_divergence  # type: ignore
+from utility.bba import BBA
+# 依赖本项目内现成工具函数 / 模块
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
+
+apply_style()
 
 
-def rb_divergence(m1: Dict[FrozenSet[str], float], m2: Dict[FrozenSet[str], float]) -> float:
+def rb_divergence(m1: BBA, m2: BBA) -> float:
     """计算两条 BBA 的 RB 散度"""
     b11 = b_divergence(m1, m1)
     b22 = b_divergence(m2, m2)
@@ -24,7 +30,7 @@ def rb_divergence(m1: Dict[FrozenSet[str], float], m2: Dict[FrozenSet[str], floa
     return math.sqrt(max(0.0, min(rb, 1.0)))
 
 
-def divergence_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd.DataFrame:
+def divergence_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
     """生成 RB 散度矩阵"""
     names = [n for n, _ in bbas]
     size = len(names)
@@ -81,5 +87,4 @@ def plot_heatmap(
     ax.set_yticks(range(len(dist_df)))
     ax.set_yticklabels(dist_df.index)
     ax.set_title(title)
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=300)
+    savefig(fig, out_path)

@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+"""多簇操作测试脚本"""
+
 import os
 import sys
 from typing import List
@@ -33,13 +36,13 @@ def bba_dynamic_adding(csv_path: str) -> None:
         mc.print_all_info()
 
     # 可视化整个簇集。
-    visualize_clusters(list(mc._clusters.values()))
+    visualize_clusters(list(mc._clusters.values()), show=False)
 
 
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':  # pragma: no cover
     # todo 默认配置，根据不同的 CSV 文件或 BBA 簇修改
-    example_name = 'Example_3_3_3.csv'
+    example_name = 'Example_3_7.csv'
 
     # 确定项目根目录：当前脚本位于 cluster/，故上溯一级
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -57,4 +60,3 @@ if __name__ == '__main__':  # pragma: no cover
     except Exception as e:
         print("ERROR:", e)
         sys.exit(1)
-

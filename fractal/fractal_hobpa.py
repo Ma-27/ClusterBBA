@@ -29,10 +29,9 @@ CSV 格式要求
 
 接口：
 - powerset(s: FrozenSet[str]) -> Iterator[FrozenSet[str]]
-- split_once(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]
-- higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]
-- bba_to_series(bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> List[float]
-- compute_fractal_df(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]], focal_cols: List[str], h: int) -> pd.DataFrame
+- split_once(bba: BBA, h: int) -> BBA
+- higher_order_bba(bba: BBA, h: int) -> BBA
+ - compute_fractal_df(bbas: List[Tuple[str, BBA]], focal_cols: List[str], h: int) -> pd.DataFrame
 
 示例：
 ```python
@@ -53,12 +52,13 @@ from typing import Dict, FrozenSet, List, Tuple, Iterator
 
 import pandas as pd
 
-from config import SEG_DEPTH
 # 依赖本项目内现成工具函数 / 模块
-from utility.io import load_bbas, format_set
+from config import SEG_DEPTH
+from utility.bba import BBA
+from utility.io import load_bbas
 
 __all__ = [
-    'powerset', 'split_once', 'higher_order_bba', 'bba_to_series', 'compute_fractal_df'
+    'powerset', 'split_once', 'higher_order_bba', 'compute_fractal_df'
 ]
 
 
@@ -75,7 +75,7 @@ def powerset(s: FrozenSet[str]) -> Iterator[FrozenSet[str]]:
 # ------------------------------ 分形核心 ------------------------------ #
 
 # 执行一次 1 阶分形，按论文公式分配质量
-def split_once(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]:
+def split_once(bba: BBA, h: int) -> BBA:
     """执行一次 h 阶分形 (均等分配)"""
     new_bba: Dict[FrozenSet[str], float] = {}
     for Aj, mass in bba.items():
@@ -88,17 +88,17 @@ def split_once(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str],
         for Ai in powerset(Aj):
             factor = h ** (len(Aj) - len(Ai)) / denom
             new_bba[Ai] = new_bba.get(Ai, 0.0) + mass * factor
-    return new_bba
+    return BBA(new_bba)
 
 
 # 执行 h 阶均等分形（迭代 h 次 split_once）。
-def higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet[str], float]:
+def higher_order_bba(bba: BBA, h: int) -> BBA:
     # 如果 h=0，直接返回原始 BBA；h=1 时可直接调用一次分裂；更高阶通过迭代实现
     if h == 0:
         return bba
     if h == 1:
         return split_once(bba, 1)
-    current = bba
+    current: BBA = bba
     for _ in range(h):
         current = split_once(current, h)
     return current
@@ -106,15 +106,9 @@ def higher_order_bba(bba: Dict[FrozenSet[str], float], h: int) -> Dict[FrozenSet
 
 # ------------------------------ I/O 与展示 ------------------------------ #
 
-# 按照指定的焦元顺序，将 bba_dict 转为数值列表，用于构造 DataFrame 行
-def bba_to_series(bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> List[float]:
-    data = {format_set(k): v for k, v in bba.items()}
-    return [data.get(col, 0.0) for col in focal_order]
-
-
 # 计算指定 h 阶分形结果并返回 DataFrame
 def compute_fractal_df(
-        bbas: List[Tuple[str, Dict[FrozenSet[str], float]]],
+        bbas: List[Tuple[str, BBA]],
         focal_cols: List[str],
         h: int
 ) -> pd.DataFrame:
@@ -122,7 +116,7 @@ def compute_fractal_df(
     rows = []
     for name, bba in bbas:
         fbba = higher_order_bba(bba, h)
-        rows.append([f"{name}_h{h}"] + bba_to_series(fbba, focal_cols))
+        rows.append([f"{name}_h{h}"] + fbba.to_series(focal_cols))
     return pd.DataFrame(rows, columns=["BBA"] + focal_cols).round(4)
 
 

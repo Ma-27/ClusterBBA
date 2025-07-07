@@ -14,7 +14,13 @@ BJS Divergence Calculator Module
 
 示例：
 ```python
-from bjs_distance import load_bbas, divergence_matrix, metric_matrix, save_csv, plot_heatmap
+from utility.io import load_bbas
+from divergence.bjs import (
+    divergence_matrix,
+    metric_matrix,
+    save_csv,
+    plot_heatmap,
+)
 import pandas as pd
 
 df = pd.read_csv('data/examples/Example_3_3.csv')
@@ -26,46 +32,40 @@ save_csv(met_df, default_name='Example_3_3.csv', label='metric')
 plot_heatmap(div_df, default_name='Example_3_3.csv', title='BJS Divergence Heatmap')
 plot_heatmap(met_df, default_name='Example_3_3.csv', title='BJS Metric Heatmap')
 ```
+BJS并非一个真正的度量，但是开根号后会成为一个真正的度量，所以BJS提供了开根号的度量（metric）接口。函数命名遵照原文，原文中命名为divergence，则函数名也为divergence。修改后构造的度量才被命名为metric。
 """
 
 import math
 import os
-from typing import Dict, FrozenSet, List, Tuple, Optional
+from typing import List, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from config import EPS
+from config import EPS, LOG_BASE
+from utility.bba import BBA
 # 依赖本项目内现成工具函数 / 模块
-from divergence.metric_test import test_nonnegativity, test_symmetry, test_triangle_inequality  # type: ignore
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
+
+apply_style()
 
 
 # 计算两条 BBA 之间的 BJS divergence
-def bjs_divergence(
-        m1: Dict[FrozenSet[str], float],
-        m2: Dict[FrozenSet[str], float]
-) -> float:
+def bjs_divergence(m1: BBA, m2: BBA) -> float:
     keys = set(m1) | set(m2)
     div = 0.0
     for A in keys:
         p = m1.get(A, 0.0) or EPS
         q = m2.get(A, 0.0) or EPS
         m = 0.5 * (p + q)
-        div += 0.5 * p * math.log(p / m, 2) + 0.5 * q * math.log(q / m, 2)
+        div += 0.5 * p * math.log(p / m, LOG_BASE) + 0.5 * q * math.log(q / m, LOG_BASE)
     # BJS 的取值范围应在 [0, 1]
     return max(0.0, min(div, 1.0))
 
 
-# 对应度量 = 根号(divergence)
-def bjs_metric(
-        m1: Dict[FrozenSet[str], float],
-        m2: Dict[FrozenSet[str], float]
-) -> float:
-    return math.sqrt(bjs_divergence(m1, m2))
-
-
 # 生成对称 BJS 距离矩阵 DataFrame
-def divergence_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd.DataFrame:
+def divergence_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
     names = [n for n, _ in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
@@ -81,8 +81,13 @@ def divergence_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd
 # ---------------------------------------------------------------------------
 
 
+# 对应度量 = 根号(divergence)
+def bjs_metric(m1: BBA, m2: BBA) -> float:
+    return math.sqrt(bjs_divergence(m1, m2))
+
+
 # 生成 metric 矩阵
-def metric_matrix(bbas: List[Tuple[str, Dict[FrozenSet[str], float]]]) -> pd.DataFrame:
+def metric_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
     names = [n for n, _ in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
@@ -132,5 +137,4 @@ def plot_heatmap(
     ax.set_yticks(range(len(dist_df)))
     ax.set_yticklabels(dist_df.index)
     ax.set_title(title)
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=300)
+    savefig(fig, out_path)

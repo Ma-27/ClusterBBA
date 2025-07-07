@@ -13,10 +13,9 @@ Average BBA Calculator
 注意：只可用作计算 BBA 平均值！
 
 接口：
-- load_bba_rows(path: str) -> Tuple[List[Dict[FrozenSet[str], float]], List[str]]
-- compute_avg_bba(bba_list: List[Dict[FrozenSet[str], float]]]) -> Dict[FrozenSet[str], float]
-- bba_to_series(bba: Dict[FrozenSet[str], float], order: List[str]) -> List[float]
-- prepare_avg_dataframe(avg_bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> pd.DataFrame
+- load_bba_rows(path: str) -> Tuple[List[BBA], List[str]]
+- compute_avg_bba(bba_list: List[BBA]) -> BBA
+- prepare_avg_dataframe(avg_bba: BBA, focal_order: List[str]) -> pd.DataFrame
 
 示例：
 ```python
@@ -36,52 +35,46 @@ from typing import Dict, FrozenSet, List, Tuple
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
-from utility.io import parse_focal_set, format_set
+from utility.bba import BBA
 
-__all__ = ['load_bba_rows', 'compute_avg_bba', 'bba_to_series', 'prepare_avg_dataframe']
+__all__ = ['load_bba_rows', 'compute_avg_bba', 'prepare_avg_dataframe']
 
 
 # ------------------------------ 工具函数 ------------------------------ #
 
-# 从 CSV 中加载所有 BBA 行，返回 BBA 字典列表与焦元列顺序"
-def load_bba_rows(path: str) -> Tuple[List[Dict[FrozenSet[str], float]], List[str]]:
+# 从 CSV 中加载所有 BBA 行，返回 :class:`BBA` 列表与焦元列顺序"
+def load_bba_rows(path: str) -> Tuple[List[BBA], List[str]]:
     df = pd.read_csv(path)
     # 第一列为标签，后续列为焦元质量值
     focal_cols = list(df.columns)[1:]
-    bba_list: List[Dict[FrozenSet[str], float]] = []
+    bba_list: List[BBA] = []
     # 遍历每一行，提取质量值
     for _, row in df.iterrows():
-        bba: Dict[FrozenSet[str], float] = {}
+        mass: Dict[FrozenSet[str], float] = {}
         for col in focal_cols:
-            fs = parse_focal_set(col)
-            bba[fs] = float(row[col])  # 将质量值转换为浮点数
-        bba_list.append(bba)
+            fs = BBA.parse_focal_set(col)
+            mass[fs] = float(row[col])  # 将质量值转换为浮点数
+        bba_list.append(BBA(mass))
     return bba_list, focal_cols
 
 
 # 计算 BBA 列表中每个焦元的平均质量"
-def compute_avg_bba(bba_list: List[Dict[FrozenSet[str], float]]) -> Dict[FrozenSet[str], float]:
+def compute_avg_bba(bba_list: List[BBA]) -> BBA:
     if not bba_list:
-        return {}
+        return BBA()
     mass_sum: Dict[FrozenSet[str], float] = {}
     for bba in bba_list:
         for fs, m in bba.items():
             mass_sum[fs] = mass_sum.get(fs, 0.0) + m
     count = len(bba_list)
-    return {fs: mass / count for fs, mass in mass_sum.items()}
+    avg = {fs: mass / count for fs, mass in mass_sum.items()}
+    return BBA(avg)
 
 
-def bba_to_series(bba: Dict[FrozenSet[str], float], order: List[str]) -> List[float]:
-    """按给定的原始列名顺序生成质量值列表，用于输出和 DataFrame 构造"""
-    data = {format_set(fs): mass for fs, mass in bba.items()}
-    # 对齐顺序，不存在则填 0.0
-    return [data.get(col, 0.0) for col in order]
-
-
-def prepare_avg_dataframe(avg_bba: Dict[FrozenSet[str], float], focal_order: List[str]) -> pd.DataFrame:
+def prepare_avg_dataframe(avg_bba: BBA, focal_order: List[str]) -> pd.DataFrame:
     """构造包含平均质量的 DataFrame，并保留4位小数"""
     header = ['Label'] + focal_order
-    row = ['avg'] + bba_to_series(avg_bba, focal_order)
+    row = ['avg'] + avg_bba.to_series(focal_order)
     df_avg = pd.DataFrame([row], columns=header).round(4)
     return df_avg
 

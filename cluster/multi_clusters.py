@@ -14,12 +14,9 @@ from typing import Dict, List, Tuple, Optional
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
 from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS
 from divergence.bjs import bjs_metric
-from divergence.rd_ccjs import metric_matrix  # type: ignore
+from divergence.rd_ccjs import divergence_matrix  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
-
-# 类型别名
-BBA = Dict[frozenset[str], float]
-NamedBBA = Tuple[str, BBA]
+from utility.bba import BBA
 
 __all__ = [
     "MultiClusters",
@@ -109,7 +106,7 @@ class MultiClusters:
                 clus_l.add_bba(n, b, _init=True)
             for n, b in right:
                 clus_r.add_bba(n, b, _init=True)
-            dist_df = metric_matrix([clus_l, clus_r])
+            dist_df = divergence_matrix([clus_l, clus_r])
             sum_rd_cc.append(average_divergence(dist_df))
         #
         if not sum_rd_cc:
@@ -126,7 +123,7 @@ class MultiClusters:
             avg_rd_cc = MultiClusters._avg_rd_cc_by_split(clusters[0]) or 1.0
             # print(f"\nThe RD_CCJS distance between clusters by executing strategy {idx + 1} is {avg_rd_cc:.4f}")
         else:
-            dist_df = metric_matrix(clusters)
+            dist_df = divergence_matrix(clusters)
             # debug
             # print(f"\nThe RD_CCJS distance between clusters by executing strategy {idx + 1}:")
             # print(dist_df)

@@ -2,14 +2,13 @@
 """RD_CCJS 距离计算模块
 =========================
 
-按《研究思路构建》中提出的增强簇‑簇 Jensen–Shannon 散度 ``RD_CCJS``
-实现多个 :class:`cluster.Cluster` 对象之间的距离计算。与
-``divergence.d_ccjs`` 接口相似，但自动在全局最高分形阶上对齐簇心，
-并根据焦元出现频次计算规模权重。
+增强簇‑簇 Jensen–Shannon 散度 ``RD_CCJS``，实现多个 :class:`cluster.Cluster` 对象之间的距离计算。与``divergence.d_ccjs`` 接口相似，但自动在全局最高分形阶上对齐簇心，并根据焦元出现频次计算规模权重。
+
+RD_CCJS divergence是一个真正的度量。函数命名遵照原文，原文中命名为divergence，则函数名也为divergence。在命名规范中，只有原文中没有出现过的、符合度量公理的修改才被命名为metric。
 
 主要接口
 --------
-- ``rd_ccjs_metric(clus_p, clus_q, H) -> float``
+- ``rd_ccjs_divergence(clus_p, clus_q, H) -> float``
 - ``divergence_matrix(clusters) -> pd.DataFrame``
 - ``metric_matrix(clusters) -> pd.DataFrame``
 - ``save_csv(dist_df, out_path=None, default_name='Example_3_3.csv', label='divergence')``
@@ -36,15 +35,20 @@ from typing import Dict, FrozenSet, Iterable, List
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster  # type: ignore
 from config import SCALE_DELTA, SCALE_EPSILON
-# 分形运算可采用不同的分形办法，默认使用 fractal_average
-from fractal.fractal_average import higher_order_bba  # type: ignore
+# 分形运算可采用不同的分形办法，默认使用 fractal_max_entropy
+from fractal.fractal_max_entropy import higher_order_bba  # type: ignore
+from utility.bba import BBA
+# 依赖本项目内现成工具函数 / 模块
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
+
+apply_style()
 
 __all__ = [
-    "rd_ccjs_metric",
-    "metric_matrix",
+    "rd_ccjs_divergence",
+    "divergence_matrix",
     "save_csv",
     "plot_heatmap",
 ]
@@ -93,13 +97,13 @@ def _scale_weights(cluster: Cluster, delta: float = SCALE_DELTA, epsilon: float 
     return {fs: v / total for fs, v in votes.items()}
 
 
-def _aligned_centroid(cluster: Cluster, H: int) -> Dict[FrozenSet[str], float]:
+def _aligned_centroid(cluster: Cluster, H: int) -> BBA:
     """将簇心对齐到全局最大分形阶 ``H``。"""
-    centroid = cluster.get_centroid() or {}
+    centroid: BBA = cluster.get_centroid() or BBA()
     diff = max(H - cluster.h, 0)
     if diff == 0:
         return centroid
-    return higher_order_bba(centroid, diff)
+    return BBA(higher_order_bba(centroid, diff))
 
 
 def _max_fractal_order(clusters: Iterable[Cluster]) -> int:
@@ -113,8 +117,8 @@ def _max_fractal_order(clusters: Iterable[Cluster]) -> int:
 # 核心距离计算
 # ---------------------------------------------------------------------------
 
-def rd_ccjs_metric(clus_p: Cluster, clus_q: Cluster, H: int, delta: float = SCALE_DELTA,
-                   epsilon: float = SCALE_EPSILON, ) -> float:
+def rd_ccjs_divergence(clus_p: Cluster, clus_q: Cluster, H: int, delta: float = SCALE_DELTA,
+                       epsilon: float = SCALE_EPSILON, ) -> float:
     """计算两个簇之间的 ``RD_CCJS`` 距离。
 
     Parameters
@@ -145,12 +149,8 @@ def rd_ccjs_metric(clus_p: Cluster, clus_q: Cluster, H: int, delta: float = SCAL
     return math.sqrt(dist)
 
 
-# ---------------------------------------------------------------------------
-# Convenience: matrices / CSV / visualisation
-# ---------------------------------------------------------------------------
-
-def metric_matrix(clusters: List[Cluster], delta: float = SCALE_DELTA,
-                  epsilon: float = SCALE_EPSILON, ) -> pd.DataFrame:
+def divergence_matrix(clusters: List[Cluster], delta: float = SCALE_DELTA,
+                      epsilon: float = SCALE_EPSILON, ) -> pd.DataFrame:
     """生成 ``RD_CCJS`` 距离矩阵，可自定义平滑参数。这也是该脚本最核心的API。"""
     names = [c.name for c in clusters]
     size = len(clusters)
@@ -160,9 +160,14 @@ def metric_matrix(clusters: List[Cluster], delta: float = SCALE_DELTA,
     # 计算每对簇之间的距离
     for i in range(size):
         for j in range(i + 1, size):
-            d = rd_ccjs_metric(clusters[i], clusters[j], H, delta=delta, epsilon=epsilon)
+            d = rd_ccjs_divergence(clusters[i], clusters[j], H, delta=delta, epsilon=epsilon)
             mat[i][j] = mat[j][i] = d
     return pd.DataFrame(mat, index=names, columns=names).round(4)
+
+
+# ---------------------------------------------------------------------------
+# Convenience: CSV / visualisation
+# ---------------------------------------------------------------------------
 
 
 def save_csv(
@@ -206,5 +211,4 @@ def plot_heatmap(
     ax.set_yticks(range(len(dist_df)))
     ax.set_yticklabels(dist_df.index)
     ax.set_title(title)
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=300)
+    savefig(fig, out_path)

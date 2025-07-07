@@ -12,9 +12,13 @@ from typing import Iterable, List, Optional
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 
-# 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster
-from divergence.rd_ccjs import metric_matrix
+from divergence.rd_ccjs import divergence_matrix
+# 依赖本项目内现成工具函数 / 模块
+from utility.plot_style import apply_style
+from utility.plot_utils import savefig
+
+apply_style()
 
 __all__ = ["visualize_clusters"]
 
@@ -56,7 +60,7 @@ def visualize_clusters(
         return
 
     # 计算 RD_CCJS 距离矩阵
-    dist_df = metric_matrix(clus_list)
+    dist_df = divergence_matrix(clus_list)
     dist_mat = dist_df.values.tolist()
 
     # 计算每个簇的中心位置
@@ -99,9 +103,7 @@ def visualize_clusters(
             ax.text(mid_x, mid_y, f"{dist_val:.2f}", color='red', fontsize=8,
                     ha='center', va='center', bbox=dict(boxstyle='round,pad=0.1', facecolor='white', alpha=0.5))
 
-    plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=300)
+        savefig(fig, save_path)
     if show:
         plt.show()
-    plt.close(fig)

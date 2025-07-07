@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+"""I/O 工具函数简单测试脚本"""
+
 import os
 import sys
 

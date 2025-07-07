@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""簇静态测试脚本
+================
+验证单簇在静态条件下的基本操作流程。"""
+
 import os
 import sys
 from typing import Dict, List, Tuple
@@ -5,7 +10,7 @@ from typing import Dict, List, Tuple
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import initialize_cluster_from_csv
 from divergence.bjs import divergence_matrix  # type: ignore
-from fractal.fractal_average import higher_order_bba  # type: ignore
+from fractal.fractal_max_entropy import higher_order_bba  # type: ignore
 from mean.mean_bba import compute_avg_bba  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
 from utility.io import load_bbas, parse_focal_set, format_set  # type: ignore

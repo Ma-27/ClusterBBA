@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """项目全局超参数配置"""
 
+# 对数底数统一为 2
+LOG_BASE: float = 2.0
+
 # RD_CCJS 权重平滑参数
 SCALE_DELTA: float = 8e-3
 SCALE_EPSILON: float = 4e-3
@@ -17,5 +20,11 @@ SPLIT_TIMES: int = 5
 # 计算 BJS / D_CCJS 时避免取 log(0) 的极小常数
 EPS: float = 1e-12
 
-# 默认分形深度
-SEG_DEPTH: int = 2
+# 默认分形深度，todo 可根据实际情况修改
+SEG_DEPTH: int = 1
+
+# 实验中随机打乱顺序的重复次数
+SHUFFLE_TIMES: int = 100
+
+# tqdm 进度条宽度
+PROGRESS_NCOLS: int = 120

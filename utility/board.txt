@@ -1,0 +1,20 @@
+"E:\CScodes\Research\Cluster-Driven Data Fusion Based on Mass Functions\.venv\Scripts\python.exe" "E:\CScodes\Research\Cluster-Driven Data Fusion Based on Mass Functions\divergence\test_b_divergence.py"
+
+----- B Divergence 矩阵 -----
+        m1     m2      m3
+m1  0.0000  0.065  0.0026
+m2  0.0650  0.000  0.0000
+m3  0.0026  0.000  0.0000
+结果 CSV: experiments_result/b_divergence_Example_1_5.csv
+
+----- 验证对称性 -----
+所有距离满足对称性: d(i,j)=d(j,i)
+
+----- 验证非负性 -----
+所有距离均>=0，满足非负性
+
+----- 验证三角不等式 -----
+三角不等式失败: d(m1,m2) = 0.065 > d(m1,m3) + d(m3,m2) = 0.0026
+三角不等式失败: d(m2,m1) = 0.065 > d(m2,m3) + d(m3,m1) = 0.0026
+
+进程已结束，退出代码为 0
