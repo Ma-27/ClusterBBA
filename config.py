@@ -22,3 +22,9 @@ EPS: float = 1e-12
 
 # 默认分形深度，todo 可根据实际情况修改
 SEG_DEPTH: int = 1
+
+# 实验中随机打乱顺序的重复次数
+SHUFFLE_TIMES: int = 100
+
+# tqdm 进度条宽度
+PROGRESS_NCOLS: int = 120
