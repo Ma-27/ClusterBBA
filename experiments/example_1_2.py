@@ -29,8 +29,8 @@ from utility.formula_labels import (
     LABEL_K,
     LABEL_ALPHA,
 )
-from utility.plot_style import apply_style, savefig
-from utility.plot_utils import highlight_overlapping_lines
+from utility.plot_style import apply_style
+from utility.plot_utils import highlight_overlapping_lines, savefig
 
 apply_style()
 
