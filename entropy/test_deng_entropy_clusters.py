@@ -69,6 +69,8 @@ def _plot_history(history: EntropyHistory,
         plt.plot(steps, vals, marker='o', label=cname)
     plt.xlabel('Step')
     plt.ylabel(LABEL_DENG_ENTROPY)
+    plt.xlim(left=0)
+    plt.ylim(bottom=0)
     plt.legend()
     if save_path:
         savefig(save_path)

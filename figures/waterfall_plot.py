@@ -2,12 +2,14 @@
 """Example 3.3.3 三指标面墙示例
 ===============================
 仿照 ``group_surface.py``，在 Example 3.3.3 数据集上，
-动态加入 BBA 后计算每个簇心的 Deng 熵、各簇的簇内散度
+动态加入 BBA 后计算每个簇心的 Deng 熵、各簇的簇内散度，
 以及簇与簇之间的 RD_CCJS 距离，并以三面墙展示。
 
 本版本对原始绘图进行改进，使得 ``D_intra``、``RD_CCJS`` 与
 ``Deng`` 熵各自采用独立的纵轴范围，从而在数值量级差异较大
-时也能清楚地观察其变化趋势。
+时也能清楚地观察其变化趋势。RD_CCJS 面墙的绘制方式亦
+进行了调整：每一对簇之间的距离将单独形成一个瀑布曲线，
+因此若存在 ``K`` 个簇，则会绘制 ``K(K-1)/2`` 条瀑布曲线。
 """
 
 from __future__ import annotations
@@ -52,17 +54,6 @@ def _calc_intra(clus, clusters):
     return float(val)
 
 
-def _avg_rd_row(name: str, dist_df: Optional[pd.DataFrame]) -> float:
-    """计算指定簇在 RD_CCJS 距离矩阵中的行平均。"""
-    if dist_df is None or name not in dist_df.columns:
-        return float('nan')
-    row = dist_df.loc[name]
-    vals = [row[col] for col in dist_df.columns if col != name]
-    if not vals:
-        return float('nan')
-    return float(sum(vals) / len(vals))
-
-
 def _record_metrics(step: int, mc: MultiClusters, history: MetricHistory) -> None:
     """记录当前各簇指标。"""
     clusters = list(mc._clusters.values())
@@ -70,21 +61,37 @@ def _record_metrics(step: int, mc: MultiClusters, history: MetricHistory) -> Non
     # 当簇数量大于 1 时计算 RD_CCJS 距离矩阵
     if len(clusters) >= 2:
         dist_df = divergence_matrix(clusters)
-    # 逐簇更新历史记录
+
+    # 逐簇记录熵与簇内散度
     for clus in clusters:
-        for key in ("entropy", "d_intra", "rd_ccjs"):
-            history.setdefault(key, {}).setdefault(clus.name, [float('nan')] * (step - 1))
+        for key in ("entropy", "d_intra"):
+            history.setdefault(key, {}).setdefault(clus.name, [float("nan")] * (step - 1))
         ent = deng_entropy(clus.get_centroid() or {})
         di = _calc_intra(clus, clusters)
-        rd = _avg_rd_row(clus.name, dist_df)
         history["entropy"][clus.name].append(ent)
         history["d_intra"][clus.name].append(di)
-        history["rd_ccjs"][clus.name].append(rd)
-    # 对已存在但本轮缺失的簇填充 NaN
-    for key in history:
+
+    # 补齐本轮缺失的簇
+    for key in ("entropy", "d_intra"):
         for name, vals in history[key].items():
             if len(vals) < step:
-                vals.append(float('nan'))
+                vals.append(float("nan"))
+
+    # 记录每一对簇之间的 RD_CCJS
+    if dist_df is not None:
+        names = list(dist_df.columns)
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                pair = f"{names[i]}-{names[j]}"
+                history.setdefault("rd_ccjs", {}).setdefault(pair, [float("nan")] * (step - 1))
+                dist = float(dist_df.loc[names[i], names[j]])
+                history["rd_ccjs"][pair].append(dist)
+
+    # 填充本轮未出现的 pair
+    if "rd_ccjs" in history:
+        for pair, vals in history["rd_ccjs"].items():
+            if len(vals) < step:
+                vals.append(float("nan"))
 
 
 def _plot_history(history: MetricHistory, n_steps: int, out_path: str) -> None:
@@ -92,11 +99,6 @@ def _plot_history(history: MetricHistory, n_steps: int, out_path: str) -> None:
 
     metrics = ["entropy", "d_intra", "rd_ccjs"]
     metric_labels = [LABEL_DENG_ENTROPY, LABEL_D_INTRA, LABEL_RD_CCJS]
-
-    all_names: set[str] = set()
-    for key in history:
-        all_names.update(history[key].keys())
-    cluster_names = sorted(all_names)
 
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
@@ -112,17 +114,21 @@ def _plot_history(history: MetricHistory, n_steps: int, out_path: str) -> None:
         ax.set_box_aspect((2, 1, 1))
 
         ax.set_xlabel('Step')
-        ax.set_ylabel('Cluster')
+        if metric == "rd_ccjs":
+            ax.set_ylabel('Pair')
+        else:
+            ax.set_ylabel('Clus')
         ax.set_title(metric_labels[m_idx - 1])
         ax.set_xlim(1, n_steps)
 
-        y_pos = np.arange(len(cluster_names))
+        names = sorted(history.get(metric, {}).keys())
+        y_pos = np.arange(len(names))
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(cluster_names, rotation=30)
+        ax.set_yticklabels(names, rotation=30)
 
         # 计算当前指标的取值范围以确定 z 轴上下界
         vals_all: List[float] = []
-        for cname in cluster_names:
+        for cname in names:
             vals_all.extend(history.get(metric, {}).get(cname, []))
         valid_vals = [v for v in vals_all if not np.isnan(v)]
         if valid_vals:
@@ -135,7 +141,7 @@ def _plot_history(history: MetricHistory, n_steps: int, out_path: str) -> None:
         ax.set_zlim(z_min, z_max)
         ax.set_zlabel('Value')
 
-        for idx, cname in enumerate(cluster_names):
+        for idx, cname in enumerate(names):
             color = colors[idx % len(colors)]
             # 单个簇在不同时间步的数值
             vals = history.get(metric, {}).get(cname, [])
@@ -155,11 +161,11 @@ def _plot_history(history: MetricHistory, n_steps: int, out_path: str) -> None:
             # 仅在第一幅子图上添加图例并放置在图外侧
             legend_proxies = [
                 plt.Line2D([0], [0], color=colors[i % len(colors)], lw=1.5)
-                for i in range(len(cluster_names))
+                for i in range(len(names))
             ]
             ax.legend(
                 legend_proxies,
-                cluster_names,
+                names,
                 loc='upper left',
                 bbox_to_anchor=(-0.1, 1.02),
                 borderaxespad=0.0,
@@ -173,7 +179,7 @@ def _plot_history(history: MetricHistory, n_steps: int, out_path: str) -> None:
 
 if __name__ == '__main__':  # pragma: no cover
     # todo 在这里更改数据集，对其他的进行演示。
-    example_name = 'Example_3_3.csv'
+    example_name = 'Example_3_7.csv'
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     default_csv = os.path.join(base_dir, 'data', 'examples', example_name)
     if not os.path.isfile(default_csv):

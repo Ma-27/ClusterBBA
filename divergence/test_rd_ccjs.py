@@ -49,6 +49,8 @@ def _plot_history(history: RDHistory, save_path: str | None = None, show: bool =
     plt.plot(list(steps), history, marker='o', label=f'Average {LABEL_RD_CCJS}')
     plt.xlabel('Step')
     plt.ylabel(LABEL_RD_CCJS)
+    plt.xlim(left=0)
+    plt.ylim(bottom=0)
     plt.legend()
     if save_path:
         savefig(save_path)
@@ -80,9 +82,9 @@ if __name__ == "__main__":
 
     # todo 这里硬性指定簇的名称和成员列表，请根据数据集对应的实际情况修改
     DEFAULT_CLUSTER_ASSIGNMENT: Dict[str, List[str]] = {
-        "Clus1": ["m1", "m2", "m3", "m4", "m5"],
-        "Clus2": ["m6", "m7", "m8", "m9", "m10", "m11", "m12", "m13"],
-        "Clus3": ["m14", "m15", "m16"],
+        "Clus1": ["m1", "m2", "m5", "m6"],
+        "Clus2": ["m3", "m4"],
+        "Clus3": ["m7"],
     }
 
     # 初始化簇
