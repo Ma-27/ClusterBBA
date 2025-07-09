@@ -68,14 +68,27 @@ class MultiClusters:
         return clone
 
     @staticmethod
-    def _calc_intra_divergence(target: Cluster, clusters: List[Cluster]) -> Optional[float]:
-        """按照定义计算 ``D_intra``。"""
-        # 如果目标簇本身就有两个或更多 BBA，则直接计算其内部散度
+    def _calc_intra_divergence(target: Cluster, clusters: List[Cluster], handle_boundary: bool = False) -> Optional[
+        float]:
+        """按照定义计算 ``D_intra``。
+
+        ``handle_boundary`` 为 ``True`` 时，保持旧版边界处理逻辑：
+        当目标簇仅含一个 BBA 时，使用其他簇的平均 ``D_intra`` 进行替代；否则在无法计算时返回 ``None``。当 ``handle_boundary`` 为 ``False``（默认）时，只要目标簇不足两条 BBA，直接返回 ``None``。
+        """
+
+        # 若簇规模达到 2，则直接计算其内部散度
         if len(target.get_bbas()) >= 2:
             return target.intra_divergence()
+
+        # 不处理边界条件时，直接返回 None
+        if not handle_boundary:
+            return None
+
+        # ---------- 旧版边界特殊处理 ---------- #
         # 如果目标簇只有一个 BBA，并且还只有一个簇，则这种情况不需要此函数考虑，而是需要启动条件考虑。
         if len(clusters) < 2:
             return None
+
         # 在目标簇只有一条 BBA 时，会使用其他簇的平均簇内散度作为 d_intra（如果其他簇中，至少有一个簇具备2个及以上BBAs）。
         vals = [c.intra_divergence() for c in clusters if c != target and len(c.get_bbas()) >= 2]
         vals = [v for v in vals if v is not None]
@@ -138,7 +151,7 @@ class MultiClusters:
             # 正常情况，计算每个簇的 ``D_intra`` 并求平均
             d_intras: List[float] = []
             for clus in clusters:
-                di = MultiClusters._calc_intra_divergence(clus, clusters)
+                di = MultiClusters._calc_intra_divergence(clus, clusters, handle_boundary=True)
                 if di is None:
                     return None
                 d_intras.append(di)
