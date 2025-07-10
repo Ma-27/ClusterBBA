@@ -14,7 +14,7 @@ import pandas as pd
 
 from config import SEG_DEPTH
 from utility.bba import BBA
-from utility.io import load_bbas
+from utility.io import load_bbas, save_bbas
 
 __all__ = [
     'powerset', 'split_once', 'higher_order_bba', 'compute_fractal_df'
@@ -38,8 +38,7 @@ def split_once(bba: BBA, _h: int) -> BBA:
     new_mass: Dict[FrozenSet[str], float] = {}
     for Ak, mass in bba.items():
         if len(Ak) == 0:
-            # 空集质量原样保留
-            new_mass[Ak] = new_mass.get(Ak, 0.0) + mass
+            # 空集质量始终为 0，跳过
             continue
         subsets = bba.subsets_of(Ak, include_empty=False)
         denom = sum(BBA.subset_cardinality(B) for B in subsets)
@@ -111,5 +110,7 @@ if __name__ == '__main__':
     os.makedirs(result_dir, exist_ok=True)
     result_file = f'fractal_max_entropy_{os.path.splitext(csv_name)[0]}_h{h}.csv'
     result_path = os.path.join(result_dir, result_file)
-    out_df.to_csv(result_path, index=False, float_format='%.4f')
+    final_bbas = [(f"{name}_h{h}", higher_order_bba(bba, h)) for name, bba in bbas]
+    save_bbas(final_bbas, focal_cols, out_path=result_path,
+              default_name=os.path.basename(result_path))
     print(f'结果 CSV: {result_path}')
