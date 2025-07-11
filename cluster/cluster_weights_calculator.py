@@ -13,11 +13,11 @@
 
 from __future__ import annotations
 
-import math
 import os
 import sys
 from typing import Dict, FrozenSet, List, Tuple
 
+import numpy as np
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
@@ -27,23 +27,16 @@ if BASE_DIR not in sys.path:
 
 from cluster.one_cluster import initialize_cluster_from_csv
 from config import SCALE_DELTA, SCALE_EPSILON
+from utility.bba import BBA
 from utility.io import format_set
 
 
 # ------------------------------ 内部工具 ------------------------------ #
 
-def _sigmoid(x: float) -> float:
-    """数值稳定的 Sigmoid 函数"""
-    if x >= 50:
-        return 1.0
-    if x <= -50:
-        return 0.0
-    return 1.0 / (1.0 + math.exp(-x))
-
-
-def _set_sort_key(fs: FrozenSet[str]) -> Tuple[int, Tuple[str, ...]]:
-    """焦元排序辅助，先按大小再按字母顺序"""
-    return (len(fs), tuple(sorted(fs)))
+def _sigmoid(x: np.ndarray | float) -> np.ndarray | float:
+    """数值稳定且支持向量化的 Sigmoid 函数"""
+    x = np.clip(x, -50, 50)
+    return 1.0 / (1.0 + np.exp(-x))
 
 
 def compute_votes_and_weights(
@@ -62,18 +55,27 @@ def compute_votes_and_weights(
     for _, bba in clus.get_bbas():
         focal_sets.update(bba.keys())
 
-    votes: Dict[FrozenSet[str], float] = {fs: 0.0 for fs in focal_sets}
-    h_values: Dict[FrozenSet[str], List[float]] = {fs: [] for fs in focal_sets}
+    # 严格禁止空集参与投票与权重计算
+    focal_sets.discard(frozenset())
 
-    for _, bba in clus.get_bbas():
-        for fs in focal_sets:
-            mass = bba.get(fs, 0.0)
-            h = _sigmoid((mass - delta) / epsilon)
-            votes[fs] += h
-            h_values[fs].append(h)
+    ordered = sorted(focal_sets, key=BBA._set_sort_key)  # type: ignore[attr-defined]
+    if not ordered or not clus.get_bbas():
+        votes = {fs: 0.0 for fs in ordered}
+        weights = {fs: 0.0 for fs in ordered}
+        h_values = {fs: [] for fs in ordered}
+        return votes, weights, h_values
 
-    total = sum(votes.values())
-    weights = {fs: (v / total if total else 0.0) for fs, v in votes.items()}
+    mass_mat = np.array([[b.get_mass(fs) for fs in ordered]
+                         for _, b in clus.get_bbas()])
+    # 归一化后送入到 Sigmoid 软化
+    h_mat = _sigmoid((mass_mat - delta) / epsilon)
+    votes_vec = h_mat.sum(axis=0)
+    total = votes_vec.sum()
+    weights_vec = votes_vec / total if total else np.zeros_like(votes_vec)
+
+    votes = {fs: float(v) for fs, v in zip(ordered, votes_vec)}
+    weights = {fs: float(w) for fs, w in zip(ordered, weights_vec)}
+    h_values = {fs: h_mat[:, idx].tolist() for idx, fs in enumerate(ordered)}
     return votes, weights, h_values
 
 
@@ -149,7 +151,7 @@ if __name__ == '__main__':  # pragma: no cover
             clus = initialize_cluster_from_csv(name, bbas, csv_path)
             votes, weights, h_vals = compute_votes_and_weights(clus)
 
-            ordered = sorted(votes.keys(), key=_set_sort_key)
+            ordered = sorted(votes.keys(), key=BBA._set_sort_key)  # type: ignore[attr-defined]
             fs_strings = [format_set(fs) for fs in ordered]
 
             df = pd.DataFrame({

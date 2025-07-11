@@ -42,7 +42,7 @@ def bba_dynamic_adding(csv_path: str) -> None:
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':  # pragma: no cover
     # todo 默认配置，根据不同的 CSV 文件或 BBA 簇修改
-    example_name = 'Example_3_7.csv'
+    example_name = 'Example_3_3_3.csv'
 
     # 确定项目根目录：当前脚本位于 cluster/，故上溯一级
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))

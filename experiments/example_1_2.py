@@ -15,12 +15,12 @@ import numpy as np
 import pandas as pd
 
 from cluster.one_cluster import initialize_empty_cluster
-# 依赖本项目内现成工具函数 / 模块
-from combination.ds_rule import conflict_coefficient
 from divergence.b_divergence import b_divergence
 from divergence.bjs import bjs_divergence
 from divergence.rb_divergence import rb_divergence
 from divergence.rd_ccjs import rd_ccjs_divergence
+# 依赖本项目内现成工具函数 / 模块
+from fusion.ds_rule import conflict_coefficient
 from utility.bba import BBA
 # 依赖本项目内现成工具函数 / 模块
 from utility.formula_labels import (

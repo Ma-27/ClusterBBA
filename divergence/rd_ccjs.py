@@ -10,7 +10,6 @@ RD_CCJS divergence是一个真正的度量。函数命名遵照原文，原文�
 --------
 - ``rd_ccjs_divergence(clus_p, clus_q, H) -> float``
 - ``divergence_matrix(clusters) -> pd.DataFrame``
-- ``metric_matrix(clusters) -> pd.DataFrame``
 - ``save_csv(dist_df, out_path=None, default_name='Example_3_3.csv', label='divergence')``
 - ``plot_heatmap(dist_df, out_path=None, default_name='Example_3_3.csv', title=None, label='divergence')``
 
@@ -30,11 +29,12 @@ from __future__ import annotations
 
 import math
 import os
-from typing import Dict, FrozenSet, Iterable, List
+from typing import Iterable, List
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from cluster.cluster_weights_calculator import compute_votes_and_weights
 from cluster.one_cluster import Cluster  # type: ignore
 from config import SCALE_DELTA, SCALE_EPSILON
 # 分形运算可采用不同的分形办法，默认使用 fractal_max_entropy
@@ -57,45 +57,6 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # 工具函數
 # ---------------------------------------------------------------------------
-
-def _sigmoid(x: float) -> float:
-    """数值稳定的 Sigmoid 函数。"""
-    if x >= 50:
-        return 1.0
-    if x <= -50:
-        return 0.0
-    return 1.0 / (1.0 + math.exp(-x))
-
-
-def _scale_weights(cluster: Cluster, delta: float = SCALE_DELTA, epsilon: float = SCALE_EPSILON) -> Dict[
-    FrozenSet[str], float]:
-    r"""
-    对簇中每条 BBA 的 ``m_i(A)`` 使用平滑 Sigmoid 函数，如果远大于 ``delta`` 则接近 1。
-
-    ``h(m) = 1 / (1 + exp(-(m - delta) / epsilon))``
-
-    累加得到 :math:`\\widetilde n(A)`，再在所有焦元上归一化。
-    ``delta`` 控制平滑阈值，``epsilon`` 控制过渡的宽度。
-    """
-
-    # 收集簇内出现过的全部焦元集合
-    focal_sets = set()
-    for _, bba in cluster.get_bbas():
-        focal_sets.update(bba.keys())
-
-    # 获取 BBA 非空焦元的集合
-    votes: Dict[FrozenSet[str], float] = {fs: 0.0 for fs in focal_sets}
-    for _, bba in cluster.get_bbas():
-        for fs in focal_sets:
-            mass = bba.get(fs, 0.0)
-            vote = _sigmoid((mass - delta) / epsilon)  # 使用sigmoid替换
-            votes[fs] += vote
-
-    total = sum(votes.values())
-    if total == 0:
-        return {fs: 0.0 for fs in focal_sets}
-    return {fs: v / total for fs, v in votes.items()}
-
 
 def _aligned_centroid(cluster: Cluster, H: int) -> BBA:
     """将簇心对齐到全局最大分形阶 ``H``。"""
@@ -131,8 +92,8 @@ def rd_ccjs_divergence(clus_p: Cluster, clus_q: Cluster, H: int, delta: float = 
         权重平滑参数，对应 ``config.py`` 中的 ``SCALE_DELTA`` 与 ``SCALE_EPSILON``。
     """
 
-    w_p = _scale_weights(clus_p, delta=delta, epsilon=epsilon)
-    w_q = _scale_weights(clus_q, delta=delta, epsilon=epsilon)
+    _, w_p, _ = compute_votes_and_weights(clus_p, delta=delta, epsilon=epsilon)
+    _, w_q, _ = compute_votes_and_weights(clus_q, delta=delta, epsilon=epsilon)
     # debug 用，记得删掉
     # print(f"Cluster {clus_p.name} weights w_p: {w_p}")
     # print(f"Cluster {clus_q.name} weights w_q: {w_q}")

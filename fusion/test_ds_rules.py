@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """test_ds_rules.py
 
-演示 :mod:`combination.ds_rule` 的基本用法：
+演示 :mod:`fusion.ds_rule` 的基本用法：
  - 处理命令行参数指定 CSV 文件名
  - 加载并解析 BBA
  - 按 DS 组合规则逐步合并 BBA
@@ -17,7 +17,7 @@ import sys
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
-from combination.ds_rule import ds_combine
+from fusion.ds_rule import ds_combine
 from utility.bba import BBA
 from utility.io import load_bbas, save_bba
 

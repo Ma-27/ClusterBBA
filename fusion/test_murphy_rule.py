@@ -6,7 +6,7 @@ import sys
 
 import pandas as pd
 
-from combination.murphy_rule import (
+from fusion.murphy_rule import (
     murphy_combine,
     _average_bba,
     credibility_degrees,

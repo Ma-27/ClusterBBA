@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Package initialization for combination"""
+"""Package initialization for fusion"""
 
 __all__ = [
     "ds_rule",

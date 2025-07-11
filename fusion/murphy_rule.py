@@ -9,7 +9,7 @@ from __future__ import annotations
 from functools import reduce
 from typing import List
 
-from combination.ds_rule import ds_combine  # 已有的 DS 证据融合和实现
+from fusion.ds_rule import ds_combine  # 已有的 DS 证据融合和实现
 from mean.mean_bba import compute_avg_bba  # type: ignore
 from utility.bba import BBA
 

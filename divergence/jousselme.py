@@ -154,7 +154,7 @@ def save_csv(
 def plot_heatmap(
         dist_df: pd.DataFrame,
         out_path: Optional[str] = None,
-        default_name: str = "Example_3_3.csv",
+        default_name: str = "Example_3_3_3.csv",
         title: str = "Jousselme Distance Heatmap",
         label: str = "distance",
 ) -> None:

@@ -20,7 +20,7 @@ Dempster-Shafer 组合规则模块
 示例::
 
     from utility.io import load_bbas
-    from combination.ds_rule import combine_multiple, save_bba
+    from fusion.ds_rule import combine_multiple, save_bba
     import pandas as pd
 
     df = pd.read_csv('data/examples/Example_3_3.csv')

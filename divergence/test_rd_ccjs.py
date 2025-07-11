@@ -62,7 +62,7 @@ def _plot_history(history: RDHistory, save_path: str | None = None, show: bool =
 
 if __name__ == "__main__":
     # todo 默认示例文件名，可根据实际情况修改
-    default_name = "Example_3_7.csv"
+    default_name = "Example_3_3_3.csv"
     # 处理命令行参数：CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
