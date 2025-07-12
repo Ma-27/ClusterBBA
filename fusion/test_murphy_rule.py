@@ -21,7 +21,7 @@ def _print_step(k: int, combined: BBA, crd: list[float]) -> None:
             for fs in sorted(combined.keys(), key=BBA._set_sort_key)]
     table = pd.DataFrame([["m"] + combined.to_series(cols)],
                          columns=["BBA"] + cols).round(4)
-    cred_str = ", ".join(f"C{i + 1}={c:.3f}" for i, c in enumerate(crd))
+    cred_str = ", ".join(f"C{i + 1}={c:.4f}" for i, c in enumerate(crd))
     print(f"\n[m1 … m{k}]  Credibility: {cred_str}")
     print(table.to_string(index=False))
 
