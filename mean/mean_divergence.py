@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-"""
-Average BJS Divergence Calculator
-=================================
-读取由 bjs.py 生成的对称散度矩阵 (CSV)，计算并输出
-所有非对角元（上三角即可）的算术平均值。
+"""平均散度计算器
+=================
 
-用法（在 experiments 目录下执行）：
-$ python mean_divergence.py                       # 默认 bjs_Example_3_3.csv
-$ python mean_divergence.py bjs_Example_2_3.csv   # 指定文件
+读取由 ``bjs.py`` 生成的对称散度矩阵 (CSV)，计算并输出
+所有非对角元素（取上三角即可）的算术平均值。
+
+用法（在 ``experiments`` 目录下执行）：
+``$ python mean_divergence.py``
+``$ python mean_divergence.py bjs_Example_2_3.csv``
 
 模块接口：
-- average_divergence(dist_df: pd.DataFrame) -> float
-- compute_avg_divergence_from_csv(csv_path: str) -> float
+- ``average_divergence(dist_df: pd.DataFrame) -> float``
+- ``compute_avg_divergence_from_csv(csv_path: str) -> float``
 """
 
 import os

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-r"""fractal_max_entropy.py
+r"""最大熵分形
+==============
 
-实现文档中定义的最大熵分形运算 F，将父焦元的质量按\(2^{|A_i|}-1\) 比例拆分到所有非空子集。
-提供与 fractal_average/fractal_hobpa 相同的接口，可计算任意阶分形 BBA。
+实现文档中定义的最大熵分形运算 ``F``，将父焦元的质量按
+``2^{|A_i|}-1`` 的比例拆分到所有非空子集。该脚本与
+``fractal_average`` 和 ``fractal_hobpa`` 保持一致的接口，可计算任意阶
+分形 BBA。
 """
 
 import itertools

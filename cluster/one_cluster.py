@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-Cluster Module (单簇版本)
-========================
-提供对 单个簇 (One Cluster) 的基本操作接口，，便于作为包导入。
+"""单簇操作模块
+===============
+
+提供 ``Cluster`` 类以管理单个簇并作为包导入的基础接口。
 
 核心特性
 --------
@@ -81,7 +81,8 @@ class Cluster:
     # 根据当前簇规模重新计算簇心，依据分形阶。
     def _sync_centroid(self) -> None:
         n = len(self._bbas)
-        self.h = max(n - 1, 0)  # h = n_i - 1，确保 h>=0
+        # 分形阶 h 与簇规模的关系为 h = n_i - 1
+        self.h = max(n - 1, 0)
         if n == 0:
             self._centroid = {}
             return
@@ -102,7 +103,7 @@ class Cluster:
         # 防止重复名称
         if any(n == name for n, _ in self._bbas):
             raise ValueError(f'Duplicate BBA "{name}" in cluster "{self.name}"')
-        # 递推更新簇心
+        # 递推更新簇心：新簇心由旧簇心与新 BBA 的同阶分形平均得到
         if self._centroid is None or len(self._bbas) == 0:
             # 第一个元素，退化为自身
             new_centroid = bba.copy()
@@ -110,14 +111,16 @@ class Cluster:
         else:
             n_i = len(self._bbas)
             old_h = self.h
-            # 1) 同步分形: F(old_centroid) 即 higher_order_bba(old_centroid, old_h+1)
+            # 1) 同步分形：F(old_centroid) 等价于 ``higher_order_bba(old_centroid, old_h + 1)``
             fractal_old = higher_order_bba(self._centroid, old_h + 1)
-            # 2) 新元素的高阶分形 m_F^{(h)}
+            # 2) 新元素的高阶分形 ``m_F^{(h)}``
             new_h = old_h + 1
             fractal_new = higher_order_bba(bba, new_h)
-            # 3) 加权平均更新
-            new_centroid = {A: (n_i * fractal_old.get(A, 0.0) + fractal_new.get(A, 0.0)) / (n_i + 1)
-                            for A in set(fractal_old) | set(fractal_new)}
+            # 3) 按 ``n_i/(n_i+1)`` 与 ``1/(n_i+1)`` 的权重合成新簇心
+            new_centroid = {
+                A: (n_i * fractal_old.get(A, 0.0) + fractal_new.get(A, 0.0)) / (n_i + 1)
+                for A in set(fractal_old) | set(fractal_new)
+            }
         # 将元素加入后更新内部状态
         self._bbas.append((name, bba))
         self.h = new_h
