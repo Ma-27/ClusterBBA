@@ -96,8 +96,6 @@ def perturb_bba(base: BBA, delta: float) -> BBA:
 
     # 4) 封装为 BBA（去掉极小噪声）
     mass = {fs: float(v) for fs, v in zip(focals, new_vec) if v > 1e-12}
-    if frozenset() in base:  # 保留空集（若存在）
-        mass[frozenset()] = base[frozenset()]
     return BBA(mass, frame=base.frame)
 
 

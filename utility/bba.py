@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import itertools
+import re
 from typing import Dict, FrozenSet, Iterable, List, Optional, Tuple
 
 __all__ = ["BBA"]
@@ -36,9 +37,8 @@ class BBA(dict):
         expanded: Dict[FrozenSet[str], float] = {
             fs: float(v) for fs, v in mass.items() if fs
         }
-        # 保留空集质量（若存在）
-        if frozenset() in mass:
-            expanded[frozenset()] = float(mass[frozenset()])
+        # 强制空集质量为 0（忽略传入值）
+        expanded[frozenset()] = 0.0
 
         for r in range(1, len(self.frame) + 1):
             for combo in itertools.combinations(sorted(self.frame), r):
@@ -48,6 +48,13 @@ class BBA(dict):
 
         ordered = {fs: expanded[fs] for fs in sorted(expanded, key=self._set_sort_key)}
         super().__init__(ordered)
+
+    def __setitem__(self, key: Iterable[str] | FrozenSet[str], value: float) -> None:
+        """设置焦元质量，空集质量强制为 0"""
+        fs = frozenset(key)
+        if not fs:
+            value = 0.0
+        super().__setitem__(fs, float(value))
 
     # ------------------------ 常用接口 ------------------------ #
     def get_mass(self, fs: Iterable[str] | FrozenSet[str]) -> float:
@@ -90,6 +97,8 @@ class BBA(dict):
             cell = cell[2:-1].strip()
         if cell.startswith("{") and cell.endswith("}"):
             cell = cell[1:-1]
+        # 支持常见的并集符号，如 "U"/"∪"/"|" 等
+        cell = re.sub(r"\s*(?:∪|[Uu\|])\s*", "∪", cell)
         items = [e.strip() for e in cell.split("∪") if e.strip()]
         return frozenset(items)
 
@@ -130,8 +139,6 @@ class BBA(dict):
         elems = sorted(self.frame)
         start = 0 if include_empty else 1
         pset: List[FrozenSet[str]] = []
-        if include_empty:
-            pset.append(frozenset())
         for r in range(start, len(elems) + 1):
             for c in itertools.combinations(elems, r):
                 pset.append(frozenset(c))
@@ -173,8 +180,6 @@ class BBA(dict):
         elems = [e for e in base if e in self.frame]
         res: List[FrozenSet[str]] = []
         start = 0 if include_empty else 1
-        if include_empty:
-            res.append(frozenset())
         for r in range(start, len(elems) + 1):
             for c in itertools.combinations(elems, r):
                 sub = frozenset(c)

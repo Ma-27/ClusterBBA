@@ -1,21 +1,16 @@
 # -*- coding: utf-8 -*-
-"""
-Average BBA Calculator
-==============================
+"""BBA 平均计算器
+=================
 
-提供计算指定 CSV 文件中所有 BBA 的平均质量值的接口，供其他脚本调用。
+提供计算指定 CSV 文件中所有 BBA 的平均质量值的接口。
 
-对齐焦元后计算该文件中所有的质量（Mass）平均值，并在控制台输出结果。
-可通过修改变量来指定需要平均的 CSV 文件名。
-
-在 experiments_result 目录中，针对指定的单个 BBA 文件，
-
-注意：只可用作计算 BBA 平均值！
+对齐焦元后取各质量值的平均数并打印结果，可修改变量以指定目标 CSV
+文件名。仅用于计算 BBA 的简单平均值。
 
 接口：
-- load_bba_rows(path: str) -> Tuple[List[BBA], List[str]]
-- compute_avg_bba(bba_list: List[BBA]) -> BBA
-- prepare_avg_dataframe(avg_bba: BBA, focal_order: List[str]) -> pd.DataFrame
+- ``load_bba_rows(path: str) -> Tuple[List[BBA], List[str]]``
+- ``compute_avg_bba(bba_list: List[BBA]) -> BBA``
+- ``prepare_avg_dataframe(avg_bba: BBA, focal_order: List[str]) -> pd.DataFrame``
 
 示例：
 ```python
@@ -30,8 +25,10 @@ print(df_avg)
 
 import os
 import sys
+from functools import reduce
 from typing import Dict, FrozenSet, List, Tuple
 
+import numpy as np
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
@@ -60,15 +57,17 @@ def load_bba_rows(path: str) -> Tuple[List[BBA], List[str]]:
 
 # 计算 BBA 列表中每个焦元的平均质量"
 def compute_avg_bba(bba_list: List[BBA]) -> BBA:
+    """利用 ``numpy`` 计算 BBA 的逐焦元平均值"""
     if not bba_list:
         return BBA()
-    mass_sum: Dict[FrozenSet[str], float] = {}
-    for bba in bba_list:
-        for fs, m in bba.items():
-            mass_sum[fs] = mass_sum.get(fs, 0.0) + m
-    count = len(bba_list)
-    avg = {fs: mass / count for fs, mass in mass_sum.items()}
-    return BBA(avg)
+
+    frame = reduce(BBA.union, (b.frame for b in bba_list), frozenset())
+    proto = BBA({}, frame=frame)
+    focals = list(proto.keys())
+    mass_mat = np.array([[b.get_mass(fs) for fs in focals] for b in bba_list])
+    avg_values = mass_mat.mean(axis=0)
+    avg_mass = {fs: float(v) for fs, v in zip(focals, avg_values)}
+    return BBA(avg_mass, frame=frame)
 
 
 def prepare_avg_dataframe(avg_bba: BBA, focal_order: List[str]) -> pd.DataFrame:

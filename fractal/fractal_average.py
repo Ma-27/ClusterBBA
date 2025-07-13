@@ -37,7 +37,7 @@ import pandas as pd
 # 依赖本项目内现成工具函数 / 模块
 from config import SEG_DEPTH
 from utility.bba import BBA
-from utility.io import load_bbas
+from utility.io import load_bbas, save_bbas
 
 __all__ = [
     'powerset', 'split_once', 'higher_order_bba', 'compute_fractal_df'
@@ -62,8 +62,7 @@ def split_once(bba: BBA, _h: int) -> BBA:
     for Aj, mass in bba.items():
         # 单元素焦元或空集按原质量保留或均分到子集
         if len(Aj) == 0:
-            # 空集质量不参与分形，直接保留
-            new_bba[Aj] = new_bba.get(Aj, 0.0) + mass
+            # 空集质量始终为 0，跳过
             continue
         denom = (2 ** len(Aj)) - 1  # 非空子集数，此处为 2^Theta -1
         for Ai in powerset(Aj):
@@ -142,5 +141,7 @@ if __name__ == '__main__':
     result_path = os.path.join(result_dir, result_file)
 
     # 将最后一阶结果保存为 CSV 文件，所有数值以四位小数格式输出
-    out_k.to_csv(result_path, index=False, float_format='%.4f')
+    final_bbas = [(f"{name}_h{h}", higher_order_bba(bba, h)) for name, bba in bbas]
+    save_bbas(final_bbas, focal_cols, out_path=result_path,
+              default_name=os.path.basename(result_path))
     print(f"\n结果已保存到: {result_path}")

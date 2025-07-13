@@ -22,6 +22,7 @@ utility.io
 
 """
 
+import os
 from typing import Dict, FrozenSet, List, Tuple
 
 import pandas as pd
@@ -30,14 +31,26 @@ from utility.bba import BBA
 
 __all__ = [
     "load_bbas",
+    "ensure_focal_order",
     "parse_focal_set",
+    "parse_focal_label",
     "format_set",
+    "save_bbas",
+    "save_bba",
 ]
 
 
 def parse_focal_set(cell: str) -> FrozenSet[str]:
     """包装 :func:`BBA.parse_focal_set`，保持旧接口。"""
     return BBA.parse_focal_set(cell)
+
+
+def parse_focal_label(cell: str):
+    """解析 CSV 表头或标签为合适的集合格式."""
+    fs = BBA.parse_focal_set(cell)
+    if len(fs) == 1:
+        return next(iter(fs))
+    return fs
 
 
 def format_set(fs: FrozenSet[str]) -> str:
@@ -79,3 +92,51 @@ def load_bbas(df: pd.DataFrame, ) -> Tuple[List[Tuple[str, BBA]], List[str]]:
         mass = {parse_focal_set(col): float(row[col]) for col in focal_cols}
         bbas.append((name, BBA(mass)))  # 存储名称与 BBA
     return bbas, focal_cols
+
+
+def ensure_focal_order(bbas: List[Tuple[str, BBA]], order: List[str] | None) -> List[str]:
+    """若未给定焦元顺序, 根据 BBA 联合帧自动生成."""
+    if order is not None:
+        return order
+    # 收集所有焦元并按 BBA 内部顺序排序
+    all_sets = set()
+    for _, bba in bbas:
+        all_sets.update(bba.keys())
+    sorted_sets = sorted(all_sets, key=BBA._set_sort_key)  # type: ignore[attr-defined]
+    return [BBA.format_set(fs) for fs in sorted_sets]
+
+
+def save_bbas(
+        bbas: List[Tuple[str, BBA]],
+        focal_cols: List[str] | None = None,
+        out_path: str | None = None,
+        default_name: str = "generated.csv",
+        *,
+        float_format: str = "%.6f",
+) -> None:
+    """保存多条 BBA 到 CSV, 格式与 ``data/examples`` 中一致."""
+    cols = ensure_focal_order(bbas, focal_cols)
+    rows = [[name] + bba.to_series(cols) for name, bba in bbas]
+    df = pd.DataFrame(rows, columns=["BBA"] + cols)
+
+    if out_path is None:
+        base = os.path.dirname(os.path.abspath(__file__))
+        out_dir = os.path.join(base, "..", "experiments_result", "generated_bba")
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, default_name)
+
+    df.to_csv(out_path, index=False, float_format=float_format)
+
+
+def save_bba(
+        bba: BBA,
+        name: str = "m",
+        focal_cols: List[str] | None = None,
+        out_path: str | None = None,
+        default_name: str = "generated.csv",
+        *,
+        float_format: str = "%.6f",
+) -> None:
+    """保存单条 BBA 到 CSV."""
+    save_bbas([(name, bba)], focal_cols, out_path, default_name,
+              float_format=float_format)

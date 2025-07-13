@@ -28,6 +28,7 @@ import math
 import os
 import sys
 
+import numpy as np
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
@@ -44,22 +45,27 @@ __all__ = [
 
 # 计算单个 BBA 的 Deng 熵
 def deng_entropy(bba: BBA) -> float:
-    entropy = 0.0
-    for focal, mass in bba.items():
-        # 跳过空集或质量为 0 的焦元
-        if mass == 0 or len(focal) == 0:
-            continue
-        denom = (2 ** len(focal)) - 1
-        # 理论上 denom>=1，此处无须额外判断
-        entropy -= mass * math.log(mass / denom, LOG_BASE)
-    return entropy
+    """利用 ``numpy`` 计算单条 BBA 的 Deng 熵"""
+    items = [
+        (float(mass), len(focal))
+        for focal, mass in bba.items()
+        if mass != 0 and len(focal) != 0
+    ]
+    if not items:
+        return 0.0
+
+    mass_arr = np.array([m for m, _ in items])
+    card_arr = np.array([c for _, c in items])
+    denom = (2 ** card_arr) - 1
+    logs = np.log(mass_arr / denom) / math.log(LOG_BASE)
+    return float(-np.sum(mass_arr * logs))
 
 
 # ------------------------------ 主函数 ------------------------------ #
 
 if __name__ == "__main__":
     #  todo 读取 CSV 文件名 可按需修改
-    path = "Example_0.csv"
+    path = "Example_2_1.csv"
     try:
         csv_filename = sys.argv[1] if len(sys.argv) > 1 else path
     except IndexError:

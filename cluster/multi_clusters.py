@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """多簇管理模块
-================
-提供 ``MultiClusters`` 类以统一管理多个 :class:`cluster.Cluster` ，并实现
-基于 BBA 选簇流程。
+===============
+
+提供 ``MultiClusters`` 类以统一管理多个 ``Cluster`` 对象，并根据
+BBA 的收益策略完成自动分簇流程。
 """
 
 from __future__ import annotations
@@ -180,7 +181,7 @@ class MultiClusters:
             len(c.get_bbas()) == 1 for c in self._clusters.values()
         )
 
-        # 遍历现有簇，将 BBA 加入其中
+        # 遍历现有簇，将 BBA 加入其中并计算各自的收益
         for idx, cname in enumerate(cluster_names):
             # 获取当前簇
             clones = [self._clone_cluster(c) for c in self._clusters.values()]
