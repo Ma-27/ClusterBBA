@@ -24,7 +24,7 @@ import numpy as np
 
 # 依赖本项目内现成工具函数 / 模块
 from divergence.jousselme import jousselme_distance  # type: ignore
-from fusion.ds_rule import ds_combine  # 已有 Dempster 组合
+from fusion.ds_rule import combine_multiple  # 已有 Dempster 组合
 from utility.bba import BBA
 
 __all__ = [
@@ -87,7 +87,5 @@ def modified_average_evidence(bbas: List[BBA]) -> BBA:
         return bbas[0]
 
     avg = _weighted_average_bba(bbas)
-    result = avg
-    for _ in range(len(bbas) - 1):
-        result = ds_combine(result, avg)
-    return result
+    copies = [avg] * len(bbas)
+    return combine_multiple(copies)

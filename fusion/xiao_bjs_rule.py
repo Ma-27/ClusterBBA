@@ -7,6 +7,9 @@ Xiao BJS-Belief Entropy 组合规则
 "multi-sensor data fusion based on the belief divergence measure of evidences
 and the belief entropy" 方法（章节 4.1–4.3）。
 
+注意，这个方法并非纯用 BJS 来做出决策，而是综合了信息熵和外部 Credibility 等因素。
+如果从纯 BJS 的角度算权的话，可以参考 xiao_bjs_pure_rule.py，实际上大部分实验还是使用的这个思路来对比其他人的 benchmark。
+
 流程概述
 --------
 1. **距离矩阵** —— 使用 ``divergence.bjs.bjs_divergence`` 计算两两 BJS 距离，
@@ -39,10 +42,11 @@ from typing import Iterable, List, Optional
 
 import numpy as np
 
+# 依赖本项目内现成工具函数 / 模块
 from config import EPS
 from divergence.bjs import bjs_divergence  # Belief JS divergence
 from entropy.deng_entropy import deng_entropy
-from fusion.ds_rule import ds_combine  # Dempster ⊕ 组合
+from fusion.ds_rule import combine_multiple  # Dempster ⊕ 组合
 from utility.bba import BBA
 
 __all__ = [
@@ -126,8 +130,14 @@ def _weighted_average_bba(bbas: List[BBA], mu: Optional[Iterable[float]] = None,
     mass_mat = np.array([[b.get_mass(fs) for fs in proto.keys()] for b in bbas])
     # mass_mat shape: (k, |Θ|)
     avg_values = weight @ mass_mat  # ω · m, shape: (|Θ|,)
-    # 与论文数值示例保持一致，平均 BBA 取四位小数
-    avg_values = np.round(avg_values, 4)
+    avg_values = np.round(avg_values, 4)  # 与论文数值示例保持一致
+
+    total = float(avg_values.sum())
+    if abs(total - 1.0) > EPS:
+        # 调整最大质量项，避免因四舍五入导致的未归一
+        idx = int(np.argmax(avg_values))
+        avg_values[idx] += 1.0 - total
+
     return BBA({fs: float(v) for fs, v in zip(proto.keys(), avg_values)}, frame=frame)
 
 
@@ -144,7 +154,5 @@ def xiao_bjs_combine(bbas: List[BBA], mu: Optional[Iterable[float]] = None,
         return bbas[0]
 
     wae = _weighted_average_bba(bbas, mu=mu, nu=nu)
-    result = wae
-    for _ in range(len(bbas) - 1):
-        result = ds_combine(result, wae)
-    return result
+    copies = [wae] * len(bbas)
+    return combine_multiple(copies)

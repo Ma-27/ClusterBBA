@@ -66,13 +66,15 @@ def b_divergence(m1: BBA, m2: BBA) -> float:
             inter = inter_mat[i][j]
             if inter == 0:
                 continue
-            # 计算并集元素个数 fixme 这个没有完全按照公式来，因为完全按照公式来结果对不上，只有这一种方案对上了。
-            union = union_mat[i][j]
+            # 相关系数权重 ρ(A_i,A_j)   fixme 这个是完全按照原文公式来的，但是有个别数值示例与原文中的结果对不上。
+            weight_p = inter / len_aj  # |Ai ∩ Aj| / |Aj|
+            weight_q = inter / len_ai  # |Ai ∩ Aj| / |Ai|
+
             # 中间分布
             M = p + q
             # 按公式 (12) 分别计算两部分并累加
-            div += 0.5 * p * math.log(2 * p / M, LOG_BASE) * (inter / union)
-            div += 0.5 * q * math.log(2 * q / M, LOG_BASE) * (inter / union)
+            div += 0.5 * p * math.log(2 * p / M, LOG_BASE) * weight_p
+            div += 0.5 * q * math.log(2 * q / M, LOG_BASE) * weight_q
 
     return div if div > 0 else 0.0
 

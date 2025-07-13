@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
 Murphy 平均组合规则（Simple Average + (n-1) 次 Dempster 正交和）
-参考：Murphy, C. K. “Combining belief functions when evidence conflicts.”
-Decision Support Systems 29 (2000) 1-9.
+参考：Murphy, C. K. “Combining belief functions when evidence conflicts.” Decision Support Systems 29 (2000) 1-9.
 """
 from __future__ import annotations
 
 from functools import reduce
 from typing import List
 
-from fusion.ds_rule import ds_combine  # 已有的 DS 证据融合和实现
+# 依赖本项目内现成工具函数 / 模块
+from fusion.ds_rule import combine_multiple  # 已有的 DS 证据融合和实现
 from mean.mean_bba import compute_avg_bba  # type: ignore
 from utility.bba import BBA
 
@@ -39,10 +39,8 @@ def murphy_combine(bbas: List[BBA]) -> BBA:
         return bbas[0]
 
     avg = _average_bba(bbas)
-    result = avg
-    for _ in range(len(bbas) - 1):
-        result = ds_combine(result, avg)
-    return result
+    copies = [avg] * len(bbas)
+    return combine_multiple(copies)
 
 
 def credibility_degrees(bbas: List[BBA]) -> List[float]:

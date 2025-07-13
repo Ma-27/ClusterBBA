@@ -23,7 +23,7 @@ from utility.io import load_bbas, save_bba
 
 if __name__ == "__main__":
     # todo 默认示例文件名，可以根据需要修改
-    default_name = "Example_3_8.csv"
+    default_name = "Example_3_2_5.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
     base = os.path.dirname(os.path.abspath(__file__))

@@ -14,13 +14,12 @@ Dempster-Shafer 组合规则模块
 - **combine_multiple(bbas) -> BBA**
     依次将多条 BBA 合并为一条最终 BBA，相当于
     ``(((m1 ⊕ m2) ⊕ m3) ⊕ ... ⊕ mk)``。
-- **save_bba(bba, out_path=None, default_name='ds_combined.csv') -> None**
-    将合并后的 BBA 保存为 CSV 文件。
+  若需要保存结果，可直接使用 ``utility.io.save_bba``。
 
 示例::
 
-    from utility.io import load_bbas
-    from fusion.ds_rule import combine_multiple, save_bba
+    from utility.io import load_bbas, save_bba
+    from fusion.ds_rule import combine_multiple
     import pandas as pd
 
     df = pd.read_csv('data/examples/Example_3_3.csv')
@@ -33,6 +32,7 @@ from __future__ import annotations
 
 from typing import Dict, List, FrozenSet
 
+# 依赖本项目内现成工具函数 / 模块
 from config import EPS  # 项目内统一的极小值常数（如 1e-12）
 from utility.bba import BBA
 
