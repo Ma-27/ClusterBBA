@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """Example 1.3 多元冲突簇划分实验
 =================================
-根据文档中 Example 1.3 提供的六条 BBA，
-验证 ``MultiClusters`` 在高度冲突情况下的分簇效果，
-并计算最终簇间的 ``RD_CCJS`` 距离矩阵。
+根据文档中 Example 1.3 提供的六条 BBA，验证 ``MultiClusters`` 在高度冲突情况下的分簇效果，并计算最终簇间的 ``RD_CCJS`` 距离矩阵。
 """
 
 from __future__ import annotations
@@ -26,15 +24,18 @@ from utility.io import load_bbas
 def run_experiment(csv_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, float, List[Cluster]]:
     """执行 Example 1.3 分簇实验并返回结果数据"""
     df = pd.read_csv(csv_path)
+    # 从 CSV 加载所有待分簇的 BBA
     bbas, _ = load_bbas(df)
 
     mc = MultiClusters()
     assignments = []
     for name, bba in bbas:
+        # 在线贪心地加入 BBA，返回其所属簇编号
         target = mc.add_bba_by_reward(name, bba)
         assignments.append([name, target])
 
     clusters = list(mc._clusters.values())
+    # 计算最终簇间的 RD_CCJS 距离矩阵
     dist_df = divergence_matrix(clusters)
     avg_rd = average_divergence(dist_df)
 
@@ -52,6 +53,7 @@ if __name__ == "__main__":
     assign_df, dist_df, avg_rd, clusters = run_experiment(csv_path)
 
     result_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))
+    # 所有实验结果统一保存至该目录
     os.makedirs(result_dir, exist_ok=True)
 
     assign_df.to_csv(os.path.join(result_dir, "example_1_3_assign.csv"), index=False)

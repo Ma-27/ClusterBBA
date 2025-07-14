@@ -21,15 +21,20 @@ from utility.bba import BBA
 
 __all__ = [
     "MultiClusters",
+    "construct_clusters_by_sequence",
 ]
 
 
 class MultiClusters:
-    """维护整个簇集合 `C` 的高层数据结构。"""
+    """维护整个簇集合 `C` 的高层数据结构。
 
-    def __init__(self) -> None:
+    参数 ``debug`` 控制是否在执行过程中打印调试信息。
+    """
+
+    def __init__(self, debug: bool = True) -> None:
         self._clusters: Dict[str, Cluster] = {}
         self._next_id: int = 1  # 自动生成新簇名称使用
+        self._debug: bool = debug
 
     # ------------------------------------------------------------------
     # 基础操作
@@ -174,7 +179,8 @@ class MultiClusters:
         cluster_names = list(self._clusters.keys())
         best_reward: float = -1.0
         best_name = ""
-        print("Rewards of strategies:")
+        if self._debug:
+            print("Rewards of strategies:")
 
         # 判断是否处于多簇全为单元簇的边界情形
         all_singletons = len(self._clusters) >= 2 and all(
@@ -188,7 +194,8 @@ class MultiClusters:
             clones[idx].add_bba(name, bba, _init=True)
             r = self._strategy_reward(clones, idx, all_singletons)
             if r is not None:
-                print(f"Strategy {idx + 1} → {cname}: {r:.4f}")
+                if self._debug:
+                    print(f"Strategy {idx + 1} → {cname}: {r:.4f}")
                 if r > best_reward:
                     best_reward = r
                     best_name = cname
@@ -199,7 +206,8 @@ class MultiClusters:
         clones = [self._clone_cluster(c) for c in self._clusters.values()] + [new_clus]
         r_new = self._strategy_reward(clones, len(clones) - 1, all_singletons)
         if r_new is not None:
-            print(f"Strategy {len(clones)} → New Cluster: {r_new:.4f}")
+            if self._debug:
+                print(f"Strategy {len(clones)} → New Cluster: {r_new:.4f}")
             if r_new > best_reward:
                 best_reward = r_new
                 best_name = new_clus.name
@@ -216,23 +224,26 @@ class MultiClusters:
                 div = bjs_metric(old_bba, bba)
                 if div <= THRESHOLD_BJS:
                     only_cluster.add_bba(name, bba)
-                    print(f"\nSelected cluster: {only_cluster.name} (by threshold rule)")
-                    print()
+                    if self._debug:
+                        print(f"\nSelected cluster: {only_cluster.name} (by threshold rule)")
+                        print()
                     return only_cluster.name
                 target_name = f"Clus{self._next_id}"
                 new_cluster = initialize_empty_cluster(name=target_name)
                 new_cluster.add_bba(name, bba)
                 self._clusters[target_name] = new_cluster
                 self._next_id += 1
-                print(f"\nSelected cluster: {target_name} (by threshold rule)")
-                print()
+                if self._debug:
+                    print(f"\nSelected cluster: {target_name} (by threshold rule)")
+                    print()
                 return target_name
 
         target_name, reward = self._evaluate_strategies(name, bba)
         # 无法评价时，新建簇，通常对应没有任何簇的情况
         if not target_name:
             target_name = f"Clus{self._next_id}"
-            print("No one cluster found, no reward yet...")
+            if self._debug:
+                print("No one cluster found, no reward yet...")
             reward = None
         # 如果目标簇不存在，则说明初始化一个空簇并添加 BBA
         if target_name not in self._clusters:
@@ -241,7 +252,19 @@ class MultiClusters:
             self._next_id += 1
         clus = self._clusters[target_name]
         clus.add_bba(name, bba)
-        print(
-            f"\nSelected cluster: {target_name}, reward={reward:.4f}" if reward is not None else f"Selected cluster: {target_name}")
-        print()
+        if self._debug:
+            print(
+                f"\nSelected cluster: {target_name}, reward={reward:.4f}" if reward is not None else f"Selected cluster: {target_name}")
+            print()
         return target_name
+
+
+def construct_clusters_by_sequence(bbas: List[Tuple[str, BBA]], debug: bool = False) -> "MultiClusters":
+    """按照给定顺序批量加入 BBA 并返回 :class:`MultiClusters` 对象。
+
+    ``debug`` 为 ``False`` 时不会打印分簇过程信息。
+    """
+    mc = MultiClusters(debug=debug)
+    for name, bba in bbas:
+        mc.add_bba_by_reward(name, bba)
+    return mc

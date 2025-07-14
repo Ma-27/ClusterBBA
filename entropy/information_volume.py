@@ -9,15 +9,21 @@ import itertools
 import os
 import sys
 from dataclasses import dataclass
-from typing import FrozenSet, List, Tuple
+from typing import Dict, FrozenSet, List, Tuple
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
-from config import EPS
+from config import IV_EPSILON
 from entropy.deng_entropy import deng_entropy
 from utility.bba import BBA
+from utility.formula_labels import LABEL_I, LABEL_HI_M
 from utility.io import load_bbas
+from utility.plot_style import apply_style
+from utility.plot_utils import highlight_overlapping_lines, savefig
+
+apply_style()
 
 __all__ = ["information_volume"]
 
@@ -69,7 +75,7 @@ def _split_once(entries: List[MassEntry]) -> List[MassEntry]:
 
 # ------------------------------ 信息体积计算 ------------------------------ #
 
-def information_volume(bba: BBA, epsilon: float = EPS,
+def information_volume(bba: BBA, epsilon: float = IV_EPSILON,
                        return_curve: bool = False) -> Tuple[float, List[float] | None]:
     """
     计算信息体积 HIV-mass(m)。
@@ -93,6 +99,25 @@ def information_volume(bba: BBA, epsilon: float = EPS,
         prev = curr
 
 
+# ------------------------------ 绘图函数 ------------------------------ #
+
+def plot_curves(curves: Dict[str, List[float]], out_path: str) -> None:
+    """绘制 Hi(m) 随迭代步数变化的曲线。"""
+    fig, ax = plt.subplots()
+    for name, vals in curves.items():
+        steps = list(range(1, len(vals) + 1))
+        ax.plot(steps, vals, label=name)
+    ax.set_xlabel(LABEL_I)
+    ax.set_ylabel(LABEL_HI_M)
+    ax.set_title("Information Volume Convergence")
+    # 强制让坐标轴从原点开始
+    # ax.set_xlim(left=0)
+    # ax.set_ylim(bottom=0)
+    ax.legend()
+    highlight_overlapping_lines(ax)
+    savefig(fig, out_path)
+
+
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == "__main__":
     #  todo 数据集可以在此修改
@@ -100,7 +125,7 @@ if __name__ == "__main__":
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     try:
-        eps = float(sys.argv[2]) if len(sys.argv) > 2 else EPS
+        eps = float(sys.argv[2]) if len(sys.argv) > 2 else IV_EPSILON
         if eps <= 0:
             raise ValueError
     except ValueError:
@@ -117,6 +142,7 @@ if __name__ == "__main__":
     bbas, _ = load_bbas(df)
 
     results: List[Tuple[str, float]] = []
+    curves: Dict[str, List[float]] = {}
     print("----- Information Volume 结果 -----")
     for name, bba in bbas:
         vol, curve = information_volume(bba, eps, return_curve=True)
@@ -125,6 +151,7 @@ if __name__ == "__main__":
             print(f"  i={i:<2d} Hi(m)={h:.6f}")
         print(f"  >>> HIV-mass(m) = {vol:.6f}")
         results.append((name, round(vol, 6)))
+        curves[name] = curve
 
     # 保存结果
     out_dir = os.path.join(base_dir, "..", "experiments_result")
@@ -133,3 +160,7 @@ if __name__ == "__main__":
     pd.DataFrame(results, columns=["BBA", "InformationVolume"]) \
         .to_csv(os.path.join(out_dir, out_file), index=False, float_format="%.6f")
     print(f"\n结果已保存到: {out_file}")
+
+    fig_file = f"information_volume_{os.path.splitext(csv_name)[0]}_curve.png"
+    plot_curves(curves, os.path.join(out_dir, fig_file))
+    print(f"图像已保存到: {fig_file}")

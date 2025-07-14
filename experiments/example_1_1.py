@@ -44,8 +44,10 @@ apply_style()
 def compute_distances(alphas: List[float], *, delta: float = SCALE_DELTA,
                       epsilon: float = SCALE_EPSILON, ) -> pd.DataFrame:
     """返回给定 α 序列下的 RD_CCJS、BJS、B 与 RB 散度以及 Dempster 冲突系数"""
+    # 记录每个 α 对应的度量结果
     records = []
     for a in alphas:
+        # 对称构造两条单元素 BBA
         m1 = BBA({frozenset({"A1"}): a, frozenset({"A2"}): 1 - a})
         m2 = BBA({frozenset({"A1"}): 1 - a, frozenset({"A2"}): a})
 
@@ -54,6 +56,7 @@ def compute_distances(alphas: List[float], *, delta: float = SCALE_DELTA,
         c2 = initialize_empty_cluster("Clus2")
         c2.add_bba("m2", m2)
 
+        # RD_CCJS 需要指定簇高阶 H，取两簇的最大值
         H = max(c1.h, c2.h)
         rd = rd_ccjs_divergence(c1, c2, H, delta=delta, epsilon=epsilon)
         bj = bjs_divergence(m1, m2)

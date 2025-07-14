@@ -16,12 +16,10 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-import io
 import pandas as pd
-from contextlib import redirect_stdout
 
 # 依赖本项目内现成工具函数 / 模块
-from cluster.multi_clusters import MultiClusters  # type: ignore
+from cluster.multi_clusters import construct_clusters_by_sequence  # type: ignore
 from utility.io import load_bbas  # type: ignore
 
 
@@ -35,10 +33,8 @@ def print_cluster_elements(csv_path: str) -> None:
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
 
-    mc = MultiClusters()
-    for name, bba in bbas:
-        with redirect_stdout(io.StringIO()):
-            mc.add_bba_by_reward(name, bba)
+    # 使用构建接口批量加入 BBA
+    mc = construct_clusters_by_sequence(bbas)
 
     clusters = mc._clusters
     print(f"Number of clusters: {len(clusters)}")

@@ -8,11 +8,9 @@
 
 from __future__ import annotations
 
-import io
 import os
 import random
 import sys
-from contextlib import redirect_stdout
 from typing import Dict, List
 
 from tqdm import tqdm
@@ -36,6 +34,7 @@ def load_example_bbas(csv_path: str) -> Dict[str, BBA]:
     """读取 CSV 并返回名称到 BBA 的映射"""
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
+    # 方便随机打乱，转换为字典形式
     return dict(bbas)
 
 
@@ -61,10 +60,9 @@ def get_ground_truth_clusters() -> List[set[str]]:
 def evaluate_once(lookup: Dict[str, BBA], order: List[str], truth: List[set[str]]) -> tuple[bool, int]:
     """按照指定顺序插入 BBA，并判断簇划分是否与真值一致。"""
 
-    mc = MultiClusters()
-    with redirect_stdout(io.StringIO()):
-        for n in order:
-            mc.add_bba_by_reward(n, lookup[n])
+    mc = MultiClusters(debug=False)
+    for n in order:
+        mc.add_bba_by_reward(n, lookup[n])
 
     pred = [set(name for name, _ in clus.get_bbas()) for clus in mc._clusters.values()]
     correct = {frozenset(s) for s in pred} == {frozenset(s) for s in truth}
@@ -83,6 +81,7 @@ if __name__ == "__main__":  # pragma: no cover
     pbar = tqdm(range(SHUFFLE_TIMES), desc="实验进度", ncols=PROGRESS_NCOLS)
     for i in pbar:
         order = names.copy()
+        # 每次随机打乱 BBA 的插入顺序
         random.shuffle(order)
         correct, count = evaluate_once(lookup, order, truth_clusters)
         preds.append(1 if correct else 0)

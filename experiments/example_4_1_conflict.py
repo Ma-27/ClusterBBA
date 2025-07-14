@@ -124,6 +124,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
     固定 δ 运行实验，返回每轮的极限熵；若 **连续 need_rounds 轮** 的 |Deng 熵增量| < stop_eps，则视为收敛。
     """
     clus = initialize_empty_cluster("Clus")
+    # 每次实验先随机选一条基线 BBA
     base_name, base_bba = random.choice(BASE_BBAS)
     clus.add_bba("m0", base_bba)
 
@@ -135,6 +136,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
     _print_bba("m0", base_bba)
 
     for r in range(1, rounds + 1):
+        # 每轮重新选随机 BBA 并添加随机扰动
         base_name, base_bba = random.choice(BASE_BBAS)
         m = perturb_bba(base_bba, delta)
         print(f"Round {r} base={base_name} delta={delta}")
@@ -147,6 +149,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
         entropies.append(ent)
         prev_ent = ent
 
+        # 若连续多轮增量都小于阈值，则认定收敛
         if has_converged(diff_hist, stop_eps, need_rounds):
             entropies.extend([float("nan")] * (rounds - r))
             break
@@ -161,7 +164,6 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
 # ------------------------------ 主函数 ------------------------------ #
 
 if __name__ == "__main__":
-
     # todo 默认示例文件名，可根据实际情况修改
     default_name = "Example_4_1.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
@@ -177,6 +179,7 @@ if __name__ == "__main__":
     df = pd.DataFrame(records)
     base_dir = os.path.dirname(os.path.abspath(__file__))
     result_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))
+    # 保存实验曲线与CSV的目录
     os.makedirs(result_dir, exist_ok=True)
 
     dataset = os.path.splitext(os.path.basename(csv_name))[0]
@@ -184,7 +187,6 @@ if __name__ == "__main__":
     if suffix.startswith("example_"):
         suffix = suffix[len("example_"):]
 
-    # todo 在此可以修改路径信息。
     csv_path = os.path.join(result_dir, f"example_{suffix}_conflict_generation.csv")
     df.to_csv(csv_path, index=False, float_format="%.6f")
 
