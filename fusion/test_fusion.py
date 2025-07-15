@@ -48,6 +48,10 @@ from fusion.xiao_rb_rule import (
     xiao_rb_combine,
     credibility_degrees as rb_weights,
 )
+from fusion.my_rule import (
+    my_combine,
+    credibility_degrees as my_weights,
+)
 from utility.bba import BBA
 from utility.io import load_bbas
 
@@ -59,6 +63,7 @@ METHODS = [
     ("BJS Pure (Xiao)", xiao_bjs_pure_combine),
     ("BJS Origin (Xiao)", xiao_bjs_combine),
     ("RB (Xiao)", xiao_rb_combine),
+    ("Proposed", my_combine),
 ]
 
 
@@ -73,6 +78,7 @@ def collect_weights(bbas: List[BBA]) -> Dict[str, List[str]]:
         "BJS Pure (Xiao)": [f"{w:.4f}" for w in bjs_pure_weights(bbas)],
         "BJS Origin (Xiao)": [f"{w:.4f}" for w in bjs_weights(bbas)],
         "RB (Xiao)": [f"{w:.4f}" for w in rb_weights(bbas)],
+        "Proposed": [f"{w:.4f}" for w in my_weights(bbas)],
     }
     return weight_table
 

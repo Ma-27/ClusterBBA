@@ -8,4 +8,5 @@ __all__ = [
     "xiao_bjs_rule",
     "xiao_bjs_pure_rule",
     "xiao_rb_rule",
+    "my_rule",
 ]
