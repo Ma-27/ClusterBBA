@@ -14,9 +14,9 @@ r"""Proposed cluster-based fusion rule
 
 公开接口
 ---------
-- ``my_combine(bbas: List[BBA]) -> BBA``
-- ``credibility_degrees(bbas: List[BBA]) -> List[float]``
-- ``_weighted_average_bba(bbas: List[BBA]) -> BBA``
+- ``my_combine(bbas: List[BBA], names: List[str] | None = None) -> BBA``
+- ``credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List[float]``
+- ``_weighted_average_bba(bbas: List[BBA], names: List[str] | None = None) -> BBA``
 """
 from __future__ import annotations
 
@@ -61,12 +61,25 @@ def _cluster_intra_dist(clus_bbas: List[Tuple[str, BBA]]) -> Dict[str, float]:
     return result
 
 
-def credibility_degrees(bbas: List[BBA]) -> List[float]:
-    """按照 Proposed 的公式计算每条证据的权重。"""
+def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List[float]:
+    """按照 Proposed 的公式计算每条证据的权重。
+
+    Parameters
+    ----------
+    bbas : List[BBA]
+        输入的证据列表。
+    names : List[str] | None, optional
+        与 ``bbas`` 对应的名称列表，若为 ``None`` 则按 ``m1``、``m2`` … 顺序生成。
+    """
     if not bbas:
         raise ValueError("BBA 列表为空。")
 
-    named = [(f"m{i + 1}", b) for i, b in enumerate(bbas)]
+    if names is None:
+        named = [(f"m{i + 1}", b) for i, b in enumerate(bbas)]
+    else:
+        if len(names) != len(bbas):
+            raise ValueError("names 与 bbas 长度不一致")
+        named = list(zip(names, bbas))
     # 动态分簇，返回 MultiClusters 对象
     mc = construct_clusters_by_sequence(named, debug=False)
     clusters = list(mc._clusters.values())
@@ -99,7 +112,8 @@ def credibility_degrees(bbas: List[BBA]) -> List[float]:
 
     # 归一化得到 Crd_{i,j}
     total = sum(Sup.values())
-    weights = [Sup[f"m{i + 1}"] / total for i in range(len(bbas))]
+    order = names if names is not None else [f"m{i + 1}" for i in range(len(bbas))]
+    weights = [Sup[n] / total for n in order]
     return weights
 
 
@@ -107,9 +121,9 @@ def credibility_degrees(bbas: List[BBA]) -> List[float]:
 # Step 2 — 加权平均 BBA
 # ---------------------------------------------------------------------------
 
-def _weighted_average_bba(bbas: List[BBA]) -> BBA:
+def _weighted_average_bba(bbas: List[BBA], names: List[str] | None = None) -> BBA:
     """根据权重计算加权平均 BBA。"""
-    weights = np.array(credibility_degrees(bbas))
+    weights = np.array(credibility_degrees(bbas, names))
     # 合并所有信念框架，确保每条 BBA 都能在同一 Θ 下表示
     frame = reduce(BBA.union, (b.frame for b in bbas), frozenset())
     proto = BBA({}, frame=frame)
@@ -123,7 +137,7 @@ def _weighted_average_bba(bbas: List[BBA]) -> BBA:
 # Step 3 — 主接口
 # ---------------------------------------------------------------------------
 
-def my_combine(bbas: List[BBA]) -> BBA:
+def my_combine(bbas: List[BBA], names: List[str] | None = None) -> BBA:
     """多传感器融合主流程。"""
     if not bbas:
         raise ValueError("BBA 列表为空。")
@@ -132,7 +146,7 @@ def my_combine(bbas: List[BBA]) -> BBA:
         return bbas[0]
 
     # Step 1 & 2: 计算权重并求加权平均证据
-    avg = _weighted_average_bba(bbas)
+    avg = _weighted_average_bba(bbas, names)
     # Step 3: 重复 DS 组合 (n-1) 次
     copies = [avg] * len(bbas)
     return combine_multiple(copies)

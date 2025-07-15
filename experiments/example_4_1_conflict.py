@@ -115,7 +115,7 @@ def _print_bba(name: str, bba: BBA) -> None:
     """将 BBA 质量表以 DataFrame 形式打印"""
     order = [BBA.format_set(fs) for fs in bba.theta_powerset()]
     df = pd.DataFrame([bba.to_series(order)], columns=order, index=[name])
-    print(df.to_string(float_format="%.4f"))
+    print(df.to_markdown(tablefmt="github", floatfmt=".4f"))
 
 
 def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_eps: float = PERTURBATION_STOP_EPSILON,

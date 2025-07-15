@@ -8,6 +8,8 @@
 1. 各方法得到的融合 BBA；
 2. 每条 BBA 在各方法下的权重。
 
+脚本结束时，会使用 Markdown 表格再打印一次最终融合结果与权重。
+
 用法::
 
     python test_fusion.py [csv_filename]
@@ -67,7 +69,7 @@ METHODS = [
 ]
 
 
-def collect_weights(bbas: List[BBA]) -> Dict[str, List[str]]:
+def collect_weights(bbas: List[BBA], names: List[str]) -> Dict[str, List[str]]:
     """按照各方法计算权重, 返回字符串列表用于展示。"""
     k = len(bbas)
     # Dempster 组合规则没有权重概念，用 '—' 填充
@@ -78,14 +80,14 @@ def collect_weights(bbas: List[BBA]) -> Dict[str, List[str]]:
         "BJS Pure (Xiao)": [f"{w:.4f}" for w in bjs_pure_weights(bbas)],
         "BJS Origin (Xiao)": [f"{w:.4f}" for w in bjs_weights(bbas)],
         "RB (Xiao)": [f"{w:.4f}" for w in rb_weights(bbas)],
-        "Proposed": [f"{w:.4f}" for w in my_weights(bbas)],
+        "Proposed": [f"{w:.4f}" for w in my_weights(bbas, names)],
     }
     return weight_table
 
 
-def print_tables(k: int, results: Dict[str, BBA], weights: Dict[str, List[str]]) -> None:
+def print_tables(k: int, results: Dict[str, BBA], weights: Dict[str, List[str]],
+                 names: List[str]) -> None:
     """打印第 ``k`` 步的融合结果表和权重表。"""
-    print("-" * 60)
     all_sets = set()
     for bba in results.values():
         # 收集出现过的所有焦元，保证列顺序一致
@@ -97,28 +99,27 @@ def print_tables(k: int, results: Dict[str, BBA], weights: Dict[str, List[str]])
         # 不打印接近 0 的值，保持表格整洁
         series = ["" if abs(v) < 1e-12 else f"{v:.4f}" for v in bba.to_series(cols)]
         rows.append([name] + series)
-    df_res = pd.DataFrame(rows, columns=["方法"] + cols)
+    df_res = pd.DataFrame(rows, columns=["methods"] + cols)
 
     print(f"\n[m1 ... m{k}] 融合 BBA")
-    print(tabulate(df_res, headers="keys", tablefmt="grid", showindex=False))
+    print(tabulate(df_res, headers="keys", tablefmt="pipe", showindex=False))
 
     # 构造权重表
     weight_rows = []
     method_names = list(results.keys())
     for idx in range(k):
-        row = [f"m{idx + 1}"]  # BBA 名称
+        row = [names[idx]]  # 使用实际的 BBA 名称
         for name in method_names:
             row.append(weights[name][idx])
         weight_rows.append(row)
     df_w = pd.DataFrame(weight_rows, columns=["BBA"] + method_names)
     print("\n权重")
-    print(tabulate(df_w, headers="keys", tablefmt="grid", showindex=False))
-    print("-" * 60)
+    print(tabulate(df_w, headers="keys", tablefmt="pipe", showindex=False))
 
 
 if __name__ == "__main__":
     # todo 默认示例文件，可通过命令行参数替换
-    default_csv = "Example_3_2.csv"
+    default_csv = "Example_3_2_3.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -134,15 +135,19 @@ if __name__ == "__main__":
     final_results = None
     final_weights = None
     for k in pbar:
+        names = [name for name, _ in raw_bbas[:k]]
         # 当前参与融合的 BBA 集合
         cur_bbas = [b for _, b in raw_bbas[:k]]
         results: Dict[str, BBA] = {}
         # 不同规则分别计算融合结果
         for name, func in METHODS:
-            results[name] = func(cur_bbas)
-        weights = collect_weights(cur_bbas)
+            if func is my_combine:
+                results[name] = func(cur_bbas, names)
+            else:
+                results[name] = func(cur_bbas)
+        weights = collect_weights(cur_bbas, names)
         # 打印当前轮的表格
-        print_tables(k, results, weights)
+        print_tables(k, results, weights, names)
         # 记录最后一轮结果，稍后保存
         final_results = results
         final_weights = weights
@@ -156,13 +161,12 @@ if __name__ == "__main__":
         rows = []
         for name, bba in final_results.items():
             rows.append([name] + bba.to_series(cols))
-        df_res = pd.DataFrame(rows, columns=["方法"] + cols)
+        df_res = pd.DataFrame(rows, columns=["methods"] + cols)
 
         weight_rows = []
         method_names = list(final_results.keys())
-        k = len(raw_bbas)
-        for idx in range(k):
-            row = [f"m{idx + 1}"]
+        for idx, (bba_name, _) in enumerate(raw_bbas):
+            row = [bba_name]
             for name in method_names:
                 row.append(final_weights[name][idx])
             weight_rows.append(row)
@@ -178,3 +182,8 @@ if __name__ == "__main__":
         df_w.to_csv(w_path, index=False)
         print(f"\n融合结果已保存到: {res_path}")
         print(f"权重信息已保存到: {w_path}")
+
+        print("\n----- 最终融合结果 -----")
+        print(tabulate(df_res, headers="keys", tablefmt="pipe", showindex=False))
+        print("\n----- 最终权重 -----")
+        print(tabulate(df_w, headers="keys", tablefmt="pipe", showindex=False))

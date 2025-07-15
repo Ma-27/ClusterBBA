@@ -4,9 +4,7 @@
 数值示例验证 — Proposed Fusion Rule
 =====================================
 
-在命令行传入示例 CSV 文件名（默认 ``Example_3_2.csv``），逐步组合 BBA，
-打印每一步的权重和融合结果，并将最终融合结果保存至 ``experiments_result``
-目录下。
+在命令行传入示例 CSV 文件名（默认 ``Example_3_2.csv``），逐步组合 BBA，打印每一步的权重和融合结果，并将最终融合结果保存至 ``experiments_result``目录下。
 """
 
 from __future__ import annotations
@@ -47,7 +45,7 @@ def _print_average(k: int, avg: BBA) -> None:
 
 if __name__ == "__main__":
     # todo 默认示例 CSV，可在命令行指定其他文件
-    default_csv = "Example_3_2.csv"
+    default_csv = "Example_1_2.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,13 +59,14 @@ if __name__ == "__main__":
 
     print("\n----- Proposed Fusion Rule 组合结果 -----")
     for k in range(2, len(raw_bbas) + 1):
+        names = [name for name, _ in raw_bbas[:k]]
         cur_bbas = [b for _, b in raw_bbas[:k]]
-        crd = credibility_degrees(cur_bbas)
+        crd = credibility_degrees(cur_bbas, names)
 
-        avg_bba = _weighted_average_bba(cur_bbas)
+        avg_bba = _weighted_average_bba(cur_bbas, names)
         # _print_average(k, avg_bba)
 
-        combined_bba = my_combine(cur_bbas)
+        combined_bba = my_combine(cur_bbas, names)
         _print_step(k, combined_bba, crd)
 
     out_name = f"combined_my_rule_{os.path.splitext(csv_name)[0]}.csv"
