@@ -20,6 +20,29 @@ dark2_8 = [
     '#666666',  # 中灰
 ]
 
+# MATLAB 默认颜色循环 (用于 α = 1/10, 1/9, …, 1/2, 1, 2, …, 10) — 深色对应大α
+alpha_colors = [
+    '#9edae5',  # α = 1/10, light cyan
+    '#dbdb8d',  # α = 1/9, pale yellow-green
+    '#f7b6d2',  # α = 1/8, light pink
+    '#c49c94',  # α = 1/7, light brown
+    '#c5b0d5',  # α = 1/6, light purple
+    '#ff9896',  # α = 1/5, light red
+    '#98df8a',  # α = 1/4, light green
+    '#ffbb78',  # α = 1/3, light orange
+    '#aec7e8',  # α = 1/2, light blue
+    '#000000',  # α = 1, black
+    '#17becf',  # α = 2, cyan
+    '#bcbd22',  # α = 3, yellow-green
+    '#e377c2',  # α = 4, pink
+    '#8c564b',  # α = 5, brown
+    '#9467bd',  # α = 6, purple
+    '#d62728',  # α = 7, red
+    '#2ca02c',  # α = 8, green
+    '#ff7f0e',  # α = 9, orange
+    '#1f77b4'  # α = 10, muted blue
+]
+
 
 def apply_style() -> None:
     """应用 SCI 论文级别的绘图默认参数"""
