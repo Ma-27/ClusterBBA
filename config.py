@@ -36,3 +36,6 @@ IV_EPSILON: float = 0.001
 ALPHA: float = 1.0
 LAMBDA: float = 1.0
 MU: float = 1.0
+
+# 动态规划分簇时对簇数量的惩罚项，防止出现大量单元素簇
+DP_PENALTY: float = 0.1
