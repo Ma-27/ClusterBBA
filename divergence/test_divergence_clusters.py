@@ -36,7 +36,7 @@ def _print_distance_info(mc: MultiClusters) -> None:
         # 计算簇-簇距离矩阵并打印
         dist_df = divergence_matrix(clusters)
         print("簇间 RD_CCJS 距离矩阵：")
-        print(dist_df.to_string(float_format="%.4f"))
+        print(dist_df.to_markdown(tablefmt="github", floatfmt=".4f"))
         avg_rd = average_divergence(dist_df)
 
     if avg_rd is None:

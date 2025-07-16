@@ -179,14 +179,14 @@ class Cluster:
             print("Centroid mass table:")
             cent_data = {BBA.format_set(fs): [self._centroid.get(fs, 0.0)] for fs in focal_sets}
             cent_df = pd.DataFrame(cent_data, index=[self.name])
-            print(cent_df.to_string(float_format='%.4f'))
+            print(cent_df.to_markdown(tablefmt="github", floatfmt=".4f"))
 
         # BBA 质量表
         print("BBA mass table:")
         data = {BBA.format_set(fs): [bba.get(fs, 0.0) for _, bba in self._bbas] for fs in focal_sets}
         df = pd.DataFrame(data, index=[name for name, _ in self._bbas])
-        # 打印 ASCII 表格
-        print(df.to_string(float_format='%.4f'))
+        # 打印 Markdown 表格
+        print(df.to_markdown(tablefmt="github", floatfmt=".4f"))
         print()
 
     # 簇的字符串表示

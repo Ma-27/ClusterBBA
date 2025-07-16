@@ -10,24 +10,22 @@ import pandas as pd
 from fusion.xiao_bjs_rule import (
     xiao_bjs_combine,
     _weighted_average_bba,
-    credibility_degrees,
+    origin_credibility_degrees,
     information_volume,
+    credibility_degrees,
 )
 from utility.bba import BBA
 from utility.io import load_bbas, save_bba
 
 
-def _print_step(k: int, combined: BBA, crd: list[float], iv: list[float]) -> None:
+def _print_step(k: int, combined: BBA, crd: list[float], iv: list[float], weight: list[float]) -> None:
     """打印第 ``k`` 步的组合结果。"""
     cols = [BBA.format_set(fs) for fs in sorted(combined.keys(), key=BBA._set_sort_key)]
     table = pd.DataFrame([["m"] + combined.to_series(cols)], columns=["BBA"] + cols).round(4)
     crd_str = ", ".join(f"Crd{i + 1}={c:.4f}" for i, c in enumerate(crd))
     iv_str = ", ".join(f"ĨV{i + 1}={v:.4f}" for i, v in enumerate(iv))
-    dyn_rel = [c * v for c, v in zip(crd, iv)]
-    total_dyn_rel = sum(dyn_rel)
-    ACrd_norm = [a / total_dyn_rel for a in dyn_rel]
     acrd_str = ", ".join(
-        f"ÃCrd{i + 1}={a:.4f}" for i, a in enumerate(ACrd_norm)
+        f"ÃCrd{i + 1}={w:.4f}" for i, w in enumerate(weight)
     )
 
     print(f"\n[m1 ... m{k}]")
@@ -46,7 +44,7 @@ def _print_average(k: int, avg: BBA) -> None:
 
 if __name__ == "__main__":
     # todo 默认示例 CSV；可通过命令行参数替换
-    default_csv = "Example_3_2_4.csv"
+    default_csv = "Example_3_2.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -60,8 +58,9 @@ if __name__ == "__main__":
     print("\n----- Xiao BJS‑Belief Entropy 组合结果 -----")
     for k in range(2, len(raw_bbas) + 1):
         cur_bbas = [b for _, b in raw_bbas[:k]]
-        crd = credibility_degrees(cur_bbas)
+        crd = origin_credibility_degrees(cur_bbas)
         iv = information_volume(cur_bbas)
+        weight = credibility_degrees(cur_bbas)
 
         # todo 注意以下两个指标的给定，大部分情况下是不给定的，但是如果给定则需要取消后面一连串的注释。
         # 充分度指标（静态可选）
@@ -75,7 +74,7 @@ if __name__ == "__main__":
 
         combined_bba = xiao_bjs_combine(cur_bbas)
         # combined_bba = xiao_bjs_combine(cur_bbas, mu=mu, nu=nu)
-        _print_step(k, combined_bba, crd, iv)
+        _print_step(k, combined_bba, crd, iv, weight)
 
     out_name = f"combined_xiao_bjs_{os.path.splitext(csv_name)[0]}.csv"
     result_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))

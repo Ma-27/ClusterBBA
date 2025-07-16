@@ -27,6 +27,7 @@ def score(delta: float, epsilon: float) -> Tuple[float, float, float]:
     values = df["RD_CCJS"].values
     end_dev = ((values[0] - math.sqrt(2)) ** 2 + (values[-1] - math.sqrt(2)) ** 2) / 2
     smooth = np.max(np.abs(np.diff(values)))
+    # 综合端点偏差与曲线平滑度
     return end_dev * 10 + smooth, end_dev, smooth
 
 
@@ -37,6 +38,7 @@ if __name__ == "__main__":
     records = []
     best = (None, float("inf"))
     for d, e in itertools.product(deltas, epsilons):
+        # 穷举所有 (delta, epsilon) 组合
         s, dev, sm = score(d, e)
         records.append((d, e, s, dev, sm))
         if s < best[1]:
@@ -47,6 +49,7 @@ if __name__ == "__main__":
 
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     res_dir = os.path.join(base, "experiments_result")
+    # 保存网格搜索结果的目录
     os.makedirs(res_dir, exist_ok=True)
     out_path = os.path.join(res_dir, "tune_delta_epsilon.csv")
     np.savetxt(out_path, np.array(records), delimiter=",", fmt="%g", header="delta,epsilon,score,end_dev,smooth",

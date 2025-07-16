@@ -46,6 +46,7 @@ def _calc_rd(
     records = []
     for p in param_values:
         for a in alphas:
+            # 同 example_1_4 的构造方式
             m1 = BBA({frozenset({"A"}): a, frozenset({"B"}): 1 - a})
             m2 = BBA({frozenset({"A"}): 0.0001, frozenset({"B"}): 0.9999})
 
@@ -55,9 +56,11 @@ def _calc_rd(
             c2.add_bba("m2", m2)
 
             if vary_delta:
+                # 枚举 delta，epsilon 固定
                 rd = rd_ccjs_divergence(c1, c2, max(c1.h, c2.h), delta=p, epsilon=epsilon)
                 records.append([a, p, rd])
             else:
+                # 枚举 epsilon，delta 固定
                 rd = rd_ccjs_divergence(c1, c2, max(c1.h, c2.h), delta=delta, epsilon=p)
                 records.append([a, p, rd])
 
@@ -101,6 +104,7 @@ if __name__ == "__main__":
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     res_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))
+    # 结果数据统一写入该目录
     os.makedirs(res_dir, exist_ok=True)
 
     df_delta.to_csv(os.path.join(res_dir, "example_1_4_delta.csv"), index=False)

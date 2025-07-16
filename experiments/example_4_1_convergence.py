@@ -116,7 +116,7 @@ def _print_bba(name: str, bba: BBA) -> None:
     """将 BBA 质量表以 DataFrame 形式打印"""
     order = [BBA.format_set(fs) for fs in bba.theta_powerset()]
     df = pd.DataFrame([bba.to_series(order)], columns=order, index=[name])
-    print(df.to_string(float_format="%.4f"))
+    print(df.to_markdown(tablefmt="github", floatfmt=".4f"))
 
 
 def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_eps: float = PERTURBATION_STOP_EPSILON,
@@ -135,7 +135,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
     _print_bba("m0", BASE_BBA)
 
     for r in range(1, rounds + 1):
-        # 1) 生成并加入新 BBA
+        # 每轮生成一条扰动 BBA 并加入簇
         m = perturb_bba(BASE_BBA, delta)
         print(f"Round {r} delta={delta}")
         _print_bba(f"m{r}", m)
@@ -148,7 +148,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
         entropies.append(ent)
         prev_ent = ent
 
-        # 3) 判断是否收敛
+        # 3) 判断是否收敛，当增量持续低于阈值时提前退出
         if has_converged(diff_hist, stop_eps, need_rounds):
             entropies.extend([float("nan")] * (rounds - r))
             break
@@ -179,6 +179,7 @@ if __name__ == "__main__":
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     result_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))
+    # 所有实验输出存放的位置
     os.makedirs(result_dir, exist_ok=True)
 
     dataset = os.path.splitext(os.path.basename(csv_name))[0]

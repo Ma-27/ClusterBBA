@@ -51,6 +51,7 @@ from utility.bba import BBA
 
 __all__ = [
     "xiao_bjs_combine",
+    "origin_credibility_degrees",
     "credibility_degrees",
     "information_volume",
     "_weighted_average_bba",
@@ -71,7 +72,7 @@ def _distance_matrix(bbas: List[BBA]) -> np.ndarray:
     return dmat
 
 
-def credibility_degrees(bbas: List[BBA]) -> List[float]:
+def origin_credibility_degrees(bbas: List[BBA]) -> List[float]:
     """按照 Xiao‑BJS 方法得到每条证据的 *可信度* Crd_i。"""
     if not bbas:
         raise ValueError("BBA 列表为空。")
@@ -84,6 +85,17 @@ def credibility_degrees(bbas: List[BBA]) -> List[float]:
     total_sup = support.sum()
     # 可信度权重 Crd_i
     return (support / total_sup).tolist()
+
+
+def credibility_degrees(bbas: List[BBA]) -> List[float]:
+    """计算 Xiao-BJS 原始方法的权重 ω_i。"""
+    # origin_credibility_degrees 与 information_volume 分别代表两类度量
+    crd = np.array(origin_credibility_degrees(bbas))
+    iv = np.array(information_volume(bbas))
+    # 动态权重为二者乘积后归一化
+    dyn = crd * iv
+    weight = dyn / dyn.sum()
+    return weight.tolist()
 
 
 # -----------------------------------------------------------------------------
@@ -109,7 +121,7 @@ def _weighted_average_bba(bbas: List[BBA], mu: Optional[Iterable[float]] = None,
     *静态可靠度* ``w(SR_i) = mu_i × nu_i``。若未提供，则默认为 ``1``。
     """
 
-    crd = np.array(credibility_degrees(bbas))
+    crd = np.array(origin_credibility_degrees(bbas))
     iv_norm = np.array(information_volume(bbas))
 
     dyn_rel = crd * iv_norm  # ACrd_i

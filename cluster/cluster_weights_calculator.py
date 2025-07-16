@@ -165,9 +165,9 @@ if __name__ == '__main__':  # pragma: no cover
             h_df = pd.DataFrame(h_data, index=fs_strings).round(4)
 
             print(f'----- Cluster "{name}" Scale Weights -----')
-            print(df.to_string(float_format="%.4f"))
+            print(df.to_markdown(tablefmt="github", floatfmt=".4f"))
             print("h_epsilon values:")
-            print(h_df.to_string(float_format="%.4f"))
+            print(h_df.to_markdown(tablefmt="github", floatfmt=".4f"))
             print()
     except Exception as e:
         print('ERROR:', e)

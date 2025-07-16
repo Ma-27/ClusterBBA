@@ -36,7 +36,7 @@ def _print_average(k: int, avg: BBA) -> None:
 
 if __name__ == "__main__":
     # todo 默认示例文件名，可以根据需要修改
-    default_csv = "Example_3_2_5.csv"
+    default_csv = "Example_3_2.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     base_dir = os.path.dirname(os.path.abspath(__file__))

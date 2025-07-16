@@ -43,8 +43,10 @@ apply_style()
 
 def compute_distances(alphas: List[float]) -> pd.DataFrame:
     """返回给定 α 序列下的 RD_CCJS、BJS、B 与 RB 散度数据表"""
+    # 对每个 α 计算四种散度
     records = []
     for a in alphas:
+        # 第一条 BBA 随 α 变化，第二条保持近似确定
         m1 = BBA({frozenset({"A"}): a, frozenset({"B"}): 1 - a})
         m2 = BBA({frozenset({"A"}): 0.0001, frozenset({"B"}): 0.9999})
 
@@ -53,6 +55,7 @@ def compute_distances(alphas: List[float]) -> pd.DataFrame:
         c2 = initialize_empty_cluster("Clus2")
         c2.add_bba("m2", m2)
 
+        # H 取两簇的最大值
         rd = rd_ccjs_divergence(c1, c2, max(c1.h, c2.h))
         bj = bjs_divergence(m1, m2)
         b = b_divergence(m1, m2)
@@ -116,7 +119,9 @@ if __name__ == "__main__":
         c = initialize_empty_cluster(f"Clus{idx}")
         c.add_bba(f"m{idx}", m)
         clusters.append(c)
+    # 计算簇之间的距离矩阵
     dist_df = divergence_matrix(clusters)
     print("\n----- RD_CCJS Metric Matrix -----")
     print(dist_df.to_string())
+    # 使用内置测试函数验证度量性质
     print(run_all_tests(dist_df))

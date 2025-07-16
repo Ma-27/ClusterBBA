@@ -28,3 +28,11 @@ SHUFFLE_TIMES: int = 100
 
 # tqdm 进度条宽度
 PROGRESS_NCOLS: int = 120
+
+# Information Volume 中的 epsilon
+IV_EPSILON: float = 0.001
+
+# 专家超参数与灵敏度系数，用于最后的证据融合
+ALPHA: float = 1.0
+LAMBDA: float = 1.0
+MU: float = 1.0
