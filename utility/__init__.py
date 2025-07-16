@@ -6,8 +6,9 @@ Package initialization for utility
 __all__ = [
     "io",
     "bba",
+    "probability",
     "plot_style",
-    "formula_labels.py",
+    "formula_labels",
     "plot_utils",
     # ……其他你想公开的模块名
 ]
