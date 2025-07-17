@@ -5,6 +5,7 @@ Package initialization for utility
 
 __all__ = [
     "io",
+    "io_application",
     "bba",
     "probability",
     "plot_style",

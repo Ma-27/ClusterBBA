@@ -11,7 +11,7 @@ Wine 数据集 BBA 生成器
     torch
     tqdm
 输出：
-    1. data/xu_wine_bba.csv —— 保存到项目根 data 目录下（数值已四舍五入到小数点后四位）
+    1. data/xu_bba_wine.csv —— 保存到项目根 data 目录下（数值已四舍五入到小数点后四位）
     2. 控制台            —— 打印正态性检验表格及前若干条 BBA（数值四位小数）
 """
 
@@ -64,7 +64,7 @@ class WineDataset(Dataset):
 # ---------- 超参数 ----------
 ALPHA = 0.05  # Jarque–Bera 正态性检验显著性水平
 TRAIN_RATIO = 0.8
-CSV_PATH = Path(__file__).resolve().parents[1] / "xu_wine_bba.csv"
+CSV_PATH = Path(__file__).resolve().parents[1] / "xu_bba_wine.csv"
 NUM_SAMPLES = 8
 
 

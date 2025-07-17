@@ -39,3 +39,6 @@ MU: float = 1.0
 
 # 动态规划分簇时对簇数量的惩罚项，防止出现大量单元素簇
 DP_PENALTY: float = 0.1
+
+# 交叉验证折数
+K_FOLD_SPLITS = 5
