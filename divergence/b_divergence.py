@@ -79,15 +79,15 @@ def b_divergence(m1: BBA, m2: BBA) -> float:
     return div if div > 0 else 0.0
 
 
-def divergence_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
+def divergence_matrix(bbas: List[BBA]) -> pd.DataFrame:
     """生成对称 B 散度矩阵"""
-    names = [n for n, _ in bbas]
+    names = [bba.name for bba in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
             # 注意，B divergence 不是一个度量，因此不满足三角不等式的。B divergence没有metric的API。
-            d = b_divergence(bbas[i][1], bbas[j][1])
+            d = b_divergence(bbas[i], bbas[j])
             mat[i][j] = mat[j][i] = d
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 

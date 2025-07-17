@@ -49,8 +49,8 @@ def construct_clusters_with_dynamic_bba(cluster_element_list: Dict[str, List[str
     # 读取 CSV 并按文件中顺序获取所有 BBA 名称及其质量
     df = pd.read_csv(csv_path)
     all_bbas, _ = load_bbas(df)  # 返回列表，保持与 CSV 中的顺序
-    csv_order_names = [name for name, _ in all_bbas]
-    lookup = {name: bba for name, bba in all_bbas}
+    csv_order_names = [b.name for b in all_bbas]
+    lookup = {b.name: b for b in all_bbas}
 
     # 初始化所有簇
     clusters = {}
@@ -64,7 +64,7 @@ def construct_clusters_with_dynamic_bba(cluster_element_list: Dict[str, List[str
             if bba_name in members:
                 clus = clusters[cname]
                 print(f"Round: {bba_name}")
-                clus.add_bba(bba_name, lookup[bba_name])
+                clus.add_bba(lookup[bba_name])
                 clus.print_info()
 
 

@@ -122,14 +122,14 @@ def jousselme_distance(m1: BBA, m2: BBA) -> float:
     return max(0.0, min(dist, 1.0))
 
 
-def distance_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
+def distance_matrix(bbas: List[BBA]) -> pd.DataFrame:
     """生成对称 Jousselme 距离矩阵 DataFrame。"""
-    names = [n for n, _ in bbas]
+    names = [bba.name for bba in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            d = jousselme_distance(bbas[i][1], bbas[j][1])
+            d = jousselme_distance(bbas[i], bbas[j])
             mat[i][j] = mat[j][i] = d
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 

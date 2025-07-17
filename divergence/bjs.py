@@ -37,14 +37,14 @@ BJS并非一个真正的度量，但是开根号后会成为一个真正的度�
 
 import math
 import os
-from typing import List, Tuple, Optional
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from config import EPS, LOG_BASE
 from utility.bba import BBA
-# 依赖本项目内现成工具函数 / 模块
 from utility.plot_style import apply_style
 from utility.plot_utils import savefig
 
@@ -65,13 +65,13 @@ def bjs_divergence(m1: BBA, m2: BBA) -> float:
 
 
 # 生成对称 BJS 距离矩阵 DataFrame
-def divergence_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
-    names = [n for n, _ in bbas]
+def divergence_matrix(bbas: List[BBA]) -> pd.DataFrame:
+    names = [bba.name for bba in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            d = bjs_divergence(bbas[i][1], bbas[j][1])
+            d = bjs_divergence(bbas[i], bbas[j])
             mat[i][j] = mat[j][i] = d
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
@@ -87,13 +87,13 @@ def bjs_metric(m1: BBA, m2: BBA) -> float:
 
 
 # 生成 metric 矩阵
-def metric_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
-    names = [n for n, _ in bbas]
+def metric_matrix(bbas: List[BBA]) -> pd.DataFrame:
+    names = [bba.name for bba in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            m = bjs_metric(bbas[i][1], bbas[j][1])
+            m = bjs_metric(bbas[i], bbas[j])
             mat[i][j] = mat[j][i] = m
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 

@@ -52,7 +52,7 @@ def compute_votes_and_weights(
     """返回 ``\tilde n_p(A)``, ``w_p(A)`` 及每个 BBA 的 ``h_\varepsilon``"""
 
     focal_sets = set()
-    for _, bba in clus.get_bbas():
+    for bba in clus.get_bbas():
         focal_sets.update(bba.keys())
 
     # 严格禁止空集参与投票与权重计算
@@ -66,7 +66,7 @@ def compute_votes_and_weights(
         return votes, weights, h_values
 
     mass_mat = np.array([[b.get_mass(fs) for fs in ordered]
-                         for _, b in clus.get_bbas()])
+                         for b in clus.get_bbas()])
     # 归一化后送入到 Sigmoid 软化
     h_mat = _sigmoid((mass_mat - delta) / epsilon)
     votes_vec = h_mat.sum(axis=0)
@@ -159,7 +159,7 @@ if __name__ == '__main__':  # pragma: no cover
                 'w_p(A)': [weights[fs] for fs in ordered],
             }, index=fs_strings).round(4)
 
-            bba_names = [n for n, _ in clus.get_bbas()]
+            bba_names = [b.name for b in clus.get_bbas()]
             h_data = {n: [h_vals[fs][idx] for fs in ordered]
                       for idx, n in enumerate(bba_names)}
             h_df = pd.DataFrame(h_data, index=fs_strings).round(4)

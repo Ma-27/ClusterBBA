@@ -119,7 +119,7 @@ def print_tables(k: int, results: Dict[str, BBA], weights: Dict[str, List[str]],
 
 if __name__ == "__main__":
     # todo 默认示例文件，可通过命令行参数替换
-    default_csv = "Example_3_2_3.csv"
+    default_csv = "Example_3_2.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -135,9 +135,8 @@ if __name__ == "__main__":
     final_results = None
     final_weights = None
     for k in pbar:
-        names = [name for name, _ in raw_bbas[:k]]
-        # 当前参与融合的 BBA 集合
-        cur_bbas = [b for _, b in raw_bbas[:k]]
+        names = [b.name for b in raw_bbas[:k]]
+        cur_bbas = raw_bbas[:k]
         results: Dict[str, BBA] = {}
         # 不同规则分别计算融合结果
         for name, func in METHODS:
@@ -163,10 +162,17 @@ if __name__ == "__main__":
             rows.append([name] + bba.to_series(cols))
         df_res = pd.DataFrame(rows, columns=["methods"] + cols)
 
+        # 为打印构造格式化后的表格，保证数值保留 4 位小数
+        df_print = df_res.copy()
+        for col in cols:
+            df_print[col] = df_print[col].apply(
+                lambda v: "" if abs(v) < 1e-12 else f"{v:.4f}"
+            )
+
         weight_rows = []
         method_names = list(final_results.keys())
-        for idx, (bba_name, _) in enumerate(raw_bbas):
-            row = [bba_name]
+        for idx, bba in enumerate(raw_bbas):
+            row = [bba.name]
             for name in method_names:
                 row.append(final_weights[name][idx])
             weight_rows.append(row)
@@ -179,11 +185,11 @@ if __name__ == "__main__":
         res_path = os.path.join(result_dir, f"fusion_results_{out_base}.csv")
         w_path = os.path.join(result_dir, f"fusion_weights_{out_base}.csv")
         df_res.to_csv(res_path, index=False, float_format="%.4f")
-        df_w.to_csv(w_path, index=False)
+        df_w.to_csv(w_path, index=False, float_format="%.4f")
         print(f"\n融合结果已保存到: {res_path}")
         print(f"权重信息已保存到: {w_path}")
 
         print("\n----- 最终融合结果 -----")
-        print(tabulate(df_res, headers="keys", tablefmt="pipe", showindex=False))
+        print(tabulate(df_print, headers="keys", tablefmt="pipe", showindex=False))
         print("\n----- 最终权重 -----")
         print(tabulate(df_w, headers="keys", tablefmt="pipe", showindex=False))

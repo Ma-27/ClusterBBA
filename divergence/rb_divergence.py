@@ -7,14 +7,14 @@ RB divergence是一个真正的度量。函数命名遵照原文，原文中命�
 
 import math
 import os
-from typing import List, Tuple, Optional
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from divergence.b_divergence import b_divergence  # type: ignore
 from utility.bba import BBA
-# 依赖本项目内现成工具函数 / 模块
 from utility.plot_style import apply_style
 from utility.plot_utils import savefig
 
@@ -30,15 +30,15 @@ def rb_divergence(m1: BBA, m2: BBA) -> float:
     return math.sqrt(max(0.0, min(rb, 1.0)))
 
 
-def divergence_matrix(bbas: List[Tuple[str, BBA]]) -> pd.DataFrame:
+def divergence_matrix(bbas: List[BBA]) -> pd.DataFrame:
     """生成 RB 散度矩阵"""
-    names = [n for n, _ in bbas]
+    names = [bba.name for bba in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            # 注意，RB divergence 遵照原文，不给出metric的API，直接调用这个函数就足够了。
-            d = rb_divergence(bbas[i][1], bbas[j][1])
+            # 注意，RB divergence 遵照原文，不给出 metric 的 API，直接调用即可。
+            d = rb_divergence(bbas[i], bbas[j])
             mat[i][j] = mat[j][i] = d
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 

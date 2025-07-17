@@ -40,7 +40,7 @@ print('Intra‑divergence:', clus.intra_divergence())
 """
 
 import os
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -52,9 +52,6 @@ from mean.mean_divergence import average_divergence  # type: ignore
 from utility.bba import BBA
 from utility.io import load_bbas  # type: ignore
 
-# ------------------------------ 类型别名 ------------------------------ #
-NamedBBA = Tuple[str, BBA]
-
 __all__ = [
     'Cluster',
     'initialize_cluster_from_csv',
@@ -65,16 +62,16 @@ __all__ = [
 # ------------------------------ 核心类 ------------------------------ #
 # 该类表示单个质量函数簇。
 class Cluster:
-    def __init__(self, name: str, bbas: Optional[List[NamedBBA]] = None):
+    def __init__(self, name: str, bbas: Optional[List[BBA]] = None):
         self.name: str = str(name)
-        self._bbas: List[NamedBBA] = []  # 原始 BBA 列表 (无序、不重复)
+        self._bbas: List[BBA] = []  # 原始 BBA 列表 (无序、不重复)
         self._centroid: Optional[BBA] = None  # 当前簇心 (延迟计算)
         self.h: int = 0  # 当前分形阶 h = n-1
 
         # 批量导入初始 BBA
         if bbas:
-            for n, b in bbas:
-                self.add_bba(n, b, _init=True)
+            for b in bbas:
+                self.add_bba(b, _init=True)
         # 确保首次计算簇心
         self._sync_centroid()
 
@@ -89,7 +86,7 @@ class Cluster:
 
         # 1) 对所有 BBA 做同阶分形
         fbba_list: List[BBA] = []
-        for _, bba in self._bbas:
+        for bba in self._bbas:
             fbba = higher_order_bba(bba, self.h)
             fbba_list.append(fbba)
 
@@ -99,10 +96,10 @@ class Cluster:
     # ====================== 公开接口 ====================== #
 
     # 向簇中加入 新的 BBA 并同步簇心与平均散度。
-    def add_bba(self, name: str, bba: BBA, _init: bool = False) -> Optional[float]:
+    def add_bba(self, bba: BBA, _init: bool = False) -> Optional[float]:
         # 防止重复名称
-        if any(n == name for n, _ in self._bbas):
-            raise ValueError(f'Duplicate BBA "{name}" in cluster "{self.name}"')
+        if any(existing.name == bba.name for existing in self._bbas):
+            raise ValueError(f'Duplicate BBA "{bba.name}" in cluster "{self.name}"')
         # 递推更新簇心：新簇心由旧簇心与新 BBA 的同阶分形平均得到
         if self._centroid is None or len(self._bbas) == 0:
             # 第一个元素，退化为自身
@@ -122,7 +119,7 @@ class Cluster:
                 for A in set(fractal_old) | set(fractal_new)
             }
         # 将元素加入后更新内部状态
-        self._bbas.append((name, bba))
+        self._bbas.append(bba)
         self.h = new_h
         self._centroid = new_centroid
         # 校验一致性
@@ -138,7 +135,7 @@ class Cluster:
         return self._centroid
 
     # 浅拷贝返回簇内全部 `(name, BBA)`。
-    def get_bbas(self) -> List[NamedBBA]:
+    def get_bbas(self) -> List[BBA]:
         return list(self._bbas)
 
     # 将簇直接返回。
@@ -165,7 +162,7 @@ class Cluster:
         else:
             print(f'Intra‑cluster avg BJS distance: {self.intra_divergence():.4f}')
         # 打印簇中元素列表
-        element_names = [name for name, _ in self._bbas]
+        element_names = [b.name for b in self._bbas]
         formatted = ", ".join(f'"{n}"' for n in element_names)
         print(f'Elements: {formatted}')
 
@@ -183,8 +180,8 @@ class Cluster:
 
         # BBA 质量表
         print("BBA mass table:")
-        data = {BBA.format_set(fs): [bba.get(fs, 0.0) for _, bba in self._bbas] for fs in focal_sets}
-        df = pd.DataFrame(data, index=[name for name, _ in self._bbas])
+        data = {BBA.format_set(fs): [bba.get(fs, 0.0) for bba in self._bbas] for fs in focal_sets}
+        df = pd.DataFrame(data, index=[b.name for b in self._bbas])
         # 打印 Markdown 表格
         print(df.to_markdown(tablefmt="github", floatfmt=".4f"))
         print()
@@ -204,8 +201,8 @@ def initialize_cluster_from_csv(name: str, bba_names: List[str], csv_path: str, 
     df = pd.read_csv(csv_path)
     # 利用 load_bbas 将 DataFrame 转换为 (name, bba_dict) 列表
     all_bbas, _ = load_bbas(df)
-    # 构建一个名称到 BBA 字典的映射，方便快速查找。键: BBA 名称（字符串），值: 对应的 BBA 字典 (FrozenSet -> mass)
-    lookup: Dict[str, BBA] = {n: b for n, b in all_bbas}
+    # 构建一个名称到 BBA 字典的映射，方便快速查找。键: BBA 名称（字符串），值: BBA 对象。
+    lookup: Dict[str, BBA] = {b.name: b for b in all_bbas}
 
     # 收集在请求列表中但在 CSV 中找不到的名称
     missing = [n for n in bba_names if n not in lookup]
@@ -214,7 +211,7 @@ def initialize_cluster_from_csv(name: str, bba_names: List[str], csv_path: str, 
         raise KeyError(f'BBA 名称未在 CSV 中找到: {missing}')
 
     # 筛选出存在于 CSV 中的 BBA，忽略缺失项
-    selected: List[NamedBBA] = [(n, lookup[n]) for n in bba_names if n in lookup]
+    selected: List[BBA] = [lookup[n] for n in bba_names if n in lookup]
 
     # 构造并返回 Cluster 对象，初始化时批量添加 BBA
     return Cluster(name=name, bbas=selected)

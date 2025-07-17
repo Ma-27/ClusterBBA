@@ -51,9 +51,9 @@ def compute_distances(alphas: List[float]) -> pd.DataFrame:
         m2 = BBA({frozenset({"A"}): 0.0001, frozenset({"B"}): 0.9999})
 
         c1 = initialize_empty_cluster("Clus1")
-        c1.add_bba("m1", m1)
+        c1.add_bba(m1)
         c2 = initialize_empty_cluster("Clus2")
-        c2.add_bba("m2", m2)
+        c2.add_bba(m2)
 
         # H 取两簇的最大值
         rd = rd_ccjs_divergence(c1, c2, max(c1.h, c2.h))
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     for idx, a in enumerate(test_alphas, start=1):
         m = BBA({frozenset({"A"}): a, frozenset({"B"}): 1 - a})
         c = initialize_empty_cluster(f"Clus{idx}")
-        c.add_bba(f"m{idx}", m)
+        c.add_bba(m)
         clusters.append(c)
     # 计算簇之间的距离矩阵
     dist_df = divergence_matrix(clusters)

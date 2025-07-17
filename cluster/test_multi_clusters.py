@@ -30,9 +30,9 @@ def bba_dynamic_adding(csv_path: str) -> None:
     bbas, _ = load_bbas(df)
     # 按照 CSV 顺序获取 BBA 名称，模拟动态入簇过程
     mc = MultiClusters()
-    for name, bba in bbas:
-        print(f"------------------------------ Round: {name} ------------------------------ ")
-        mc.add_bba_by_reward(name, bba)
+    for bba in bbas:
+        print(f"------------------------------ Round: {bba.name} ------------------------------ ")
+        mc.add_bba_by_reward(bba)
         mc.print_all_info()
 
     # 可视化整个簇集。
@@ -42,7 +42,7 @@ def bba_dynamic_adding(csv_path: str) -> None:
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':  # pragma: no cover
     # todo 默认配置，根据不同的 CSV 文件或 BBA 簇修改
-    example_name = 'Example_3_2.csv'
+    example_name = 'Example_3_3_3.csv'
 
     # 确定项目根目录：当前脚本位于 cluster/，故上溯一级
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))

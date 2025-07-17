@@ -62,7 +62,7 @@ def evaluate_once(lookup: Dict[str, BBA], order: List[str], truth: List[set[str]
 
     mc = MultiClusters(debug=False)
     for n in order:
-        mc.add_bba_by_reward(n, lookup[n])
+        mc.add_bba_by_reward(lookup[n])
 
     pred = [set(name for name, _ in clus.get_bbas()) for clus in mc._clusters.values()]
     correct = {frozenset(s) for s in pred} == {frozenset(s) for s in truth}

@@ -77,8 +77,8 @@ if __name__ == "__main__":
     # 读取 BBA
     df = pd.read_csv(csv_path)
     all_bbas, _ = load_bbas(df)
-    order_names = [name for name, _ in all_bbas]
-    lookup = {name: bba for name, bba in all_bbas}
+    order_names = [bba.name for bba in all_bbas]
+    lookup = {bba.name: bba for bba in all_bbas}
 
     # todo 这里硬性指定簇的名称和成员列表，请根据数据集对应的实际情况修改
     DEFAULT_CLUSTER_ASSIGNMENT: Dict[str, List[str]] = {
@@ -98,7 +98,8 @@ if __name__ == "__main__":
         step += 1
         for c_name, members in DEFAULT_CLUSTER_ASSIGNMENT.items():
             if bba_name in members:
-                clusters[c_name].add_bba(bba_name, lookup[bba_name])
+                # 初始化阶段避免调用 intra_divergence
+                clusters[c_name].add_bba(lookup[bba_name], _init=True)
         _record_history(step, clusters, history)
 
     clus_list = list(clusters.values())

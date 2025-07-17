@@ -81,7 +81,7 @@ def prepare_avg_dataframe(avg_bba: BBA, focal_order: List[str]) -> pd.DataFrame:
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # todo 替换为所需文件名，指定需要计算平均的 CSV 文件名
-    target_file = 'fractal_Example_3_3_3_h2.csv'
+    target_file = 'fractal_average_Example_3_3_3_h2.csv'
 
     # 构造文件路径
     base_dir = os.path.dirname(os.path.abspath(__file__))

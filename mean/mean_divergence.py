@@ -52,7 +52,7 @@ def average_divergence(dist_df: pd.DataFrame) -> float:
 # ------------------------------ 主程序 ------------------------------ #
 if __name__ == '__main__':
     # 默认文件名，可通过命令行覆盖，todo 这里可以修改
-    default_csv = 'bjs_divergence_Example_0_4.csv'
+    default_csv = 'bjs_divergence_Example_3_3_3.csv'
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     # 构造绝对路径：experiments_result/<csv_name>

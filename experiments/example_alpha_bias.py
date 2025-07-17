@@ -68,9 +68,9 @@ def compute_sup_rate(alphas: List[float], clones: List[int]) -> pd.DataFrame:
     for n in clones:
         c1 = initialize_empty_cluster("Clus1")
         for i in range(n + 1):
-            c1.add_bba(f"m1_{i}", m1, _init=True)
+            c1.add_bba(m1, _init=True)
         c2 = initialize_empty_cluster("Clus2")
-        c2.add_bba("m2", m2, _init=True)
+        c2.add_bba(m2, _init=True)
 
         dists_c1 = _avg_intra_distances(c1)
         dists_c2 = _avg_intra_distances(c2)

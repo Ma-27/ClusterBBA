@@ -23,7 +23,7 @@ def test_parse_and_format():
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # todo 默认示例文件，可以灵活修改
-    default_name = 'Example_3_3.csv'
+    default_name = 'Example_0.csv'
     # 处理命令行参数：CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     # 读取 CSV 并解析 BBA 数据
     df = pd.read_csv(csv_path)
-    bbas, focal_cols = load_bbas(df)  # load_bbas 返回 ([(name, bba_dict), …], focal_cols)
+    bbas, focal_cols = load_bbas(df)  # load_bbas 返回 ([BBA, …], focal_cols)
 
     print(bbas)
 

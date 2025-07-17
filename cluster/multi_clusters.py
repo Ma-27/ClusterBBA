@@ -9,7 +9,7 @@ BBA 的收益策略完成自动分簇流程。
 from __future__ import annotations
 
 import random
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
@@ -70,8 +70,8 @@ class MultiClusters:
     def _clone_cluster(src: Cluster) -> Cluster:
         """深拷贝一个簇（仅复制内部 BBA 数据）。"""
         clone = initialize_empty_cluster(name=src.name)
-        for n, b in src.get_bbas():
-            clone.add_bba(n, b, _init=True)
+        for b in src.get_bbas():
+            clone.add_bba(b, _init=True)
         return clone
 
     @staticmethod
@@ -122,10 +122,10 @@ class MultiClusters:
                 continue
             clus_l = initialize_empty_cluster(name="L")
             clus_r = initialize_empty_cluster(name="R")
-            for n, b in left:
-                clus_l.add_bba(n, b, _init=True)
-            for n, b in right:
-                clus_r.add_bba(n, b, _init=True)
+            for b in left:
+                clus_l.add_bba(b, _init=True)
+            for b in right:
+                clus_r.add_bba(b, _init=True)
             dist_df = divergence_matrix([clus_l, clus_r])
             sum_rd_cc.append(average_divergence(dist_df))
         #
@@ -175,7 +175,7 @@ class MultiClusters:
     # ------------------------------------------------------------------
     # 选簇与入簇
     # ------------------------------------------------------------------
-    def _evaluate_strategies(self, name: str, bba: BBA) -> Tuple[str, Optional[float]]:
+    def _evaluate_strategies(self, bba: BBA) -> Tuple[str, Optional[float]]:
         """内部使用，评估所有策略并返回最优簇名称。"""
         cluster_names = list(self._clusters.keys())
         best_reward: float = -1.0
@@ -192,7 +192,7 @@ class MultiClusters:
         for idx, cname in enumerate(cluster_names):
             # 获取当前簇
             clones = [self._clone_cluster(c) for c in self._clusters.values()]
-            clones[idx].add_bba(name, bba, _init=True)
+            clones[idx].add_bba(bba, _init=True)
             r = self._strategy_reward(clones, idx, all_singletons)
             if r is not None:
                 if self._debug:
@@ -203,7 +203,7 @@ class MultiClusters:
 
         # 最后考虑新建簇策略
         new_clus = initialize_empty_cluster(name=f"Clus{self._next_id}")
-        new_clus.add_bba(name, bba, _init=True)
+        new_clus.add_bba(bba, _init=True)
         clones = [self._clone_cluster(c) for c in self._clusters.values()] + [new_clus]
         r_new = self._strategy_reward(clones, len(clones) - 1, all_singletons)
         if r_new is not None:
@@ -214,24 +214,24 @@ class MultiClusters:
                 best_name = new_clus.name
         return best_name, (best_reward if best_reward >= 0 else None)
 
-    def add_bba_by_reward(self, name: str, bba: BBA) -> str:
+    def add_bba_by_reward(self, bba: BBA) -> str:
         """根据收益自动选择簇并执行入簇，返回目标簇名。"""
         # ---------- 单簇单元边界特判 ---------- #
         if len(self._clusters) == 1:
             only_cluster = next(iter(self._clusters.values()))
             # 如果全局只有一个簇，且该簇只有一个 BBA，则直接判断是否满足分簇阈值，似乎没有更好的办法了。
             if len(only_cluster.get_bbas()) == 1:
-                old_bba = only_cluster.get_bbas()[0][1]
+                old_bba = only_cluster.get_bbas()[0]
                 div = bjs_metric(old_bba, bba)
                 if div <= THRESHOLD_BJS:
-                    only_cluster.add_bba(name, bba)
+                    only_cluster.add_bba(bba)
                     if self._debug:
                         print(f"\nSelected cluster: {only_cluster.name} (by threshold rule)")
                         print()
                     return only_cluster.name
                 target_name = f"Clus{self._next_id}"
                 new_cluster = initialize_empty_cluster(name=target_name)
-                new_cluster.add_bba(name, bba)
+                new_cluster.add_bba(bba)
                 self._clusters[target_name] = new_cluster
                 self._next_id += 1
                 if self._debug:
@@ -239,7 +239,7 @@ class MultiClusters:
                     print()
                 return target_name
 
-        target_name, reward = self._evaluate_strategies(name, bba)
+        target_name, reward = self._evaluate_strategies(bba)
         # 无法评价时，新建簇，通常对应没有任何簇的情况
         if not target_name:
             target_name = f"Clus{self._next_id}"
@@ -252,7 +252,7 @@ class MultiClusters:
             self._clusters[target_name] = clus
             self._next_id += 1
         clus = self._clusters[target_name]
-        clus.add_bba(name, bba)
+        clus.add_bba(bba)
         if self._debug:
             print(
                 f"\nSelected cluster: {target_name}, reward={reward:.4f}" if reward is not None else f"Selected cluster: {target_name}")
@@ -260,18 +260,18 @@ class MultiClusters:
         return target_name
 
 
-def construct_clusters_by_sequence(bbas: List[Tuple[str, BBA]], debug: bool = False) -> "MultiClusters":
+def construct_clusters_by_sequence(bbas: List[BBA], debug: bool = False) -> "MultiClusters":
     """按照给定顺序批量加入 BBA 并返回 :class:`MultiClusters` 对象。
 
     ``debug`` 为 ``False`` 时不会打印分簇过程信息。
     """
     mc = MultiClusters(debug=debug)
-    for name, bba in bbas:
-        mc.add_bba_by_reward(name, bba)
+    for bba in bbas:
+        mc.add_bba_by_reward(bba)
     return mc
 
 
-def construct_clusters_by_sequence_dp(bbas: List[Tuple[str, BBA]], debug: bool = False) -> "MultiClusters":
+def construct_clusters_by_sequence_dp(bbas: List[BBA], debug: bool = False) -> "MultiClusters":
     """使用动态规划寻找 ``D_intra`` 最小的全局簇划分。
 
     为了避免分簇结果受 BBA 加入顺序影响，函数内部会先按名称
@@ -284,27 +284,27 @@ def construct_clusters_by_sequence_dp(bbas: List[Tuple[str, BBA]], debug: bool =
 
     # 统一按照 BBA 名称排序，保证输入顺序的一致性
     # 根据名称中的数字顺序排序，如 m1, m2, m10 ...
-    def _name_key(item: Tuple[str, BBA]) -> int:
-        name = item[0].lstrip("mM")
+    def _name_key(b: BBA) -> int:
+        name = b.name.lstrip("mM")
         return int(name) if name.isdigit() else 0
 
     bbas = sorted(bbas, key=_name_key)
 
-    def _cluster_cost(named: List[Tuple[str, BBA]]) -> float:
+    def _cluster_cost(named: List[BBA]) -> float:
         clus = initialize_empty_cluster(name="tmp")
-        for n, b in named:
-            clus.add_bba(n, b, _init=True)
+        for b in named:
+            clus.add_bba(b, _init=True)
         di = clus.intra_divergence() or 0.0
         # 加入惩罚项，避免出现过多簇
         return di + DP_PENALTY
 
     n = len(bbas)
-    dp: List[Tuple[float, List[List[Tuple[str, BBA]]]]] = [(float("inf"), []) for _ in range(n + 1)]
+    dp: List[Tuple[float, List[List[BBA]]]] = [(float("inf"), []) for _ in range(n + 1)]
     dp[0] = (0.0, [])
 
     for i in range(1, n + 1):
         best_val = float("inf")
-        best_part: List[List[Tuple[str, BBA]]] = []
+        best_part: List[List[BBA]] = []
         for j in range(0, i):
             cost = _cluster_cost(bbas[j:i]) + dp[j][0]
             if cost < best_val:
@@ -315,7 +315,7 @@ def construct_clusters_by_sequence_dp(bbas: List[Tuple[str, BBA]], debug: bool =
     mc = MultiClusters(debug=debug)
     for idx, clus_bbas in enumerate(dp[n][1], start=1):
         clus = initialize_empty_cluster(name=f"Clus{idx}")
-        for n_bba, b in clus_bbas:
-            clus.add_bba(n_bba, b, _init=True)
+        for b in clus_bbas:
+            clus.add_bba(b, _init=True)
         mc.add_cluster(clus)
     return mc

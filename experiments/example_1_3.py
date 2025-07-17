@@ -29,10 +29,10 @@ def run_experiment(csv_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, float, Li
 
     mc = MultiClusters()
     assignments = []
-    for name, bba in bbas:
+    for bba in bbas:
         # 在线贪心地加入 BBA，返回其所属簇编号
-        target = mc.add_bba_by_reward(name, bba)
-        assignments.append([name, target])
+        target = mc.add_bba_by_reward(bba)
+        assignments.append([bba.name, target])
 
     clusters = list(mc._clusters.values())
     # 计算最终簇间的 RD_CCJS 距离矩阵

@@ -41,7 +41,7 @@ def print_cluster_elements(csv_path: str, use_dp: bool = False) -> None:
     if use_dp:
         random.shuffle(bbas)
         order = ensure_focal_order(bbas, None)
-        rows = [[name] + bba.to_series(order) for name, bba in bbas]
+        rows = [[bba.name] + bba.to_series(order) for bba in bbas]
         df_bba = pd.DataFrame(rows, columns=["BBA"] + order)
         print(df_bba.to_markdown(tablefmt="github", floatfmt=".4f"))
         mc = construct_clusters_by_sequence_dp(bbas)
@@ -51,7 +51,7 @@ def print_cluster_elements(csv_path: str, use_dp: bool = False) -> None:
     clusters = mc._clusters
     print(f"Number of clusters: {len(clusters)}")
     for cname, clus in clusters.items():
-        elems = ", ".join(name for name, _ in clus.get_bbas())
+        elems = ", ".join(b.name for b in clus.get_bbas())
         print(f"Cluster '{cname}' Elements: {elems}")
 
 

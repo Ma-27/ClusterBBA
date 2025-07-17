@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 from functools import reduce
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 
@@ -46,18 +46,16 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def _cluster_intra_dist(clus_bbas: List[Tuple[str, BBA]]) -> Dict[str, float]:
+def _cluster_intra_dist(clus_bbas: List[BBA]) -> Dict[str, float]:
     """返回簇内每条 BBA 的平均 BJS 距离。"""
     if len(clus_bbas) < 2:
-        # 单元素簇无距离意义，全部返回 0
-        return {name: 0.0 for name, _ in clus_bbas}
+        return {b.name: 0.0 for b in clus_bbas}
 
     # ``divergence_matrix`` 会生成一个对称矩阵，其中对角线为 0
     df = bjs_matrix(clus_bbas)
     result: Dict[str, float] = {}
-    for idx, (name, _) in enumerate(clus_bbas):
-        # 计算第 idx 行（对应当前 BBA）的平均距离
-        result[name] = float(df.iloc[idx].sum() / (len(clus_bbas) - 1))
+    for idx, b in enumerate(clus_bbas):
+        result[b.name] = float(df.iloc[idx].sum() / (len(clus_bbas) - 1))
     return result
 
 
@@ -74,14 +72,11 @@ def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List
     if not bbas:
         raise ValueError("BBA 列表为空。")
 
-    if names is None:
-        named = [(f"m{i + 1}", b) for i, b in enumerate(bbas)]
-    else:
-        if len(names) != len(bbas):
-            raise ValueError("names 与 bbas 长度不一致")
-        named = list(zip(names, bbas))
+    if names is not None and len(names) != len(bbas):
+        raise ValueError("names 与 bbas 长度不一致")
+
     # 动态分簇，返回 MultiClusters 对象
-    mc = construct_clusters_by_sequence(named, debug=False)
+    mc = construct_clusters_by_sequence(bbas, debug=False)
     clusters = list(mc._clusters.values())
 
     # 簇间平均 RD_CCJS 距离
@@ -104,15 +99,14 @@ def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List
         intra = _cluster_intra_dist(names_bbas)
         # 该簇与其他簇的平均散度
         D_i = D_i_map.get(clus.name, 0.0)
-        for name, _ in names_bbas:
-            d_ij = intra.get(name, 0.0)
-            # 计算支持度 Sup_{i,j}
+        for b in names_bbas:
+            d_ij = intra.get(b.name, 0.0)
             sup = (n_i ** ALPHA) * math.exp(-LAMBDA * d_ij) * math.exp(-MU * D_i)
-            Sup[name] = sup
+            Sup[b.name] = sup
 
     # 归一化得到 Crd_{i,j}
     total = sum(Sup.values())
-    order = names if names is not None else [f"m{i + 1}" for i in range(len(bbas))]
+    order = names if names is not None else [b.name for b in bbas]
     weights = [Sup[n] / total for n in order]
     return weights
 

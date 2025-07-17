@@ -11,7 +11,7 @@ r"""最大熵分形
 import itertools
 import os
 import sys
-from typing import Dict, FrozenSet, List, Tuple, Iterator
+from typing import Dict, FrozenSet, List, Iterator
 
 import pandas as pd
 
@@ -65,21 +65,21 @@ def higher_order_bba(bba: BBA, h: int) -> BBA:
 
 # 计算分形 BBA 的 DataFrame，包含名称和各焦元质量
 def compute_fractal_df(
-        bbas: List[Tuple[str, BBA]],
+        bbas: List[BBA],
         focal_cols: List[str],
         h: int
 ) -> pd.DataFrame:
     rows = []
-    for name, bba in bbas:
+    for bba in bbas:
         fbba = higher_order_bba(bba, h)
-        rows.append([f"{name}_h{h}"] + fbba.to_series(focal_cols))
+        rows.append([f"{bba.name}_h{h}"] + fbba.to_series(focal_cols))
     return pd.DataFrame(rows, columns=["BBA"] + focal_cols).round(4)
 
 
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # todo 默认示例文件名，可根据实际情况修改
-    default_name = 'Example_0.csv'
+    default_name = 'Example_3_3_3.csv'
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
     try:
         h = int(sys.argv[2]) if len(sys.argv) > 2 else SEG_DEPTH
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
     if bbas:
-        theta_sets = bbas[0][1].theta_powerset()
+        theta_sets = bbas[0].theta_powerset()
         focal_cols = [BBA.format_set(fs) for fs in theta_sets]
     else:
         focal_cols = []
@@ -113,7 +113,12 @@ if __name__ == '__main__':
     os.makedirs(result_dir, exist_ok=True)
     result_file = f'fractal_max_entropy_{os.path.splitext(csv_name)[0]}_h{h}.csv'
     result_path = os.path.join(result_dir, result_file)
-    final_bbas = [(f"{name}_h{h}", higher_order_bba(bba, h)) for name, bba in bbas]
+    final_bbas = []
+    for bba in bbas:
+        fbba = higher_order_bba(bba, h)
+        fbba.name = f"{bba.name}_h{h}"
+        final_bbas.append(fbba)
+
     save_bbas(final_bbas, focal_cols, out_path=result_path,
-              default_name=os.path.basename(result_path))
+              default_name=os.path.basename(result_path), float_format='%.4f')
     print(f'结果 CSV: {result_path}')

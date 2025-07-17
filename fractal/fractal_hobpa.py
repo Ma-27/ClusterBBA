@@ -31,7 +31,7 @@ CSV 格式要求
 - powerset(s: FrozenSet[str]) -> Iterator[FrozenSet[str]]
 - split_once(bba: BBA, h: int) -> BBA
 - higher_order_bba(bba: BBA, h: int) -> BBA
- - compute_fractal_df(bbas: List[Tuple[str, BBA]], focal_cols: List[str], h: int) -> pd.DataFrame
+- compute_fractal_df(bbas: List[BBA], focal_cols: List[str], h: int) -> pd.DataFrame
 
 示例：
 ```python
@@ -48,7 +48,7 @@ out_df.to_csv('result.csv', index=False)
 import itertools
 import os
 import sys
-from typing import Dict, FrozenSet, List, Tuple, Iterator
+from typing import Dict, FrozenSet, List, Iterator
 
 import pandas as pd
 
@@ -107,15 +107,15 @@ def higher_order_bba(bba: BBA, h: int) -> BBA:
 
 # 计算指定 h 阶分形结果并返回 DataFrame
 def compute_fractal_df(
-        bbas: List[Tuple[str, BBA]],
+        bbas: List[BBA],
         focal_cols: List[str],
         h: int
 ) -> pd.DataFrame:
     """计算指定 h 阶分形结果并返回 DataFrame"""
     rows = []
-    for name, bba in bbas:
+    for bba in bbas:
         fbba = higher_order_bba(bba, h)
-        rows.append([f"{name}_h{h}"] + fbba.to_series(focal_cols))
+        rows.append([f"{bba.name}_h{h}"] + fbba.to_series(focal_cols))
     return pd.DataFrame(rows, columns=["BBA"] + focal_cols).round(4)
 
 
@@ -162,8 +162,13 @@ if __name__ == '__main__':
     # 构造结果文件路径，文件名包含原始 CSV 名称与使用的 h 阶
     result_file = f"fractal_hobpa_{os.path.splitext(csv_file)[0]}_h{h}.csv"
     result_path = os.path.join(result_dir, result_file)
-    # 将最后一阶结果保存为 CSV 文件，所有数值以四位小数格式输出
-    final_bbas = [(f"{name}_h{h}", higher_order_bba(bba, h)) for name, bba in bbas]
+    # 将最后分形结果保存为 CSV 文件，所有数值以四位小数格式输出
+    final_bbas = []
+    for bba in bbas:
+        fbba = higher_order_bba(bba, h)
+        fbba.name = f"{bba.name}_h{h}"
+        final_bbas.append(fbba)
+
     save_bbas(final_bbas, focal_cols, out_path=result_path,
-              default_name=os.path.basename(result_path))
+              default_name=os.path.basename(result_path), float_format='%.4f')
     print(f"\n结果已保存到: {result_path}")

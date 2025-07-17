@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # 按顺序逐条合并，并展示每一步的结果
     step_results = []
     cur = None
-    for idx, (_, bba) in enumerate(bbas, start=1):
+    for idx, bba in enumerate(bbas, start=1):
         cur = bba if cur is None else ds_combine(cur, bba)
         step_results.append((idx, cur))
 
@@ -69,6 +69,7 @@ if __name__ == "__main__":
     os.makedirs(result_dir, exist_ok=True)
     result_path = os.path.join(result_dir, out_name)
 
-    save_bba(result, name='m', focal_cols=None, out_path=result_path,
+    result.name = 'm'
+    save_bba(result, focal_cols=None, out_path=result_path,
              default_name=out_name, float_format='%.4f')
     print(f"\n结果已保存到: {result_path}")

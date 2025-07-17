@@ -125,7 +125,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
     固定 δ 运行实验，返回每轮的极限熵；若 **连续 need_rounds 轮** 的 |Deng 熵增量| < stop_eps，则视为收敛，后续填 NaN 以便可视化时自动断线。
     """
     clus = initialize_empty_cluster("Clus")
-    clus.add_bba("m0", BASE_BBA)
+    clus.add_bba(BASE_BBA)
 
     prev_ent = limit_entropy(clus.get_centroid())
     entropies = [prev_ent]
@@ -139,7 +139,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
         m = perturb_bba(BASE_BBA, delta)
         print(f"Round {r} delta={delta}")
         _print_bba(f"m{r}", m)
-        clus.add_bba(f"m{r}", m)
+        clus.add_bba(m)
 
         # 2) 计算当前簇心极限熵与增量
         ent = limit_entropy(clus.get_centroid())

@@ -11,7 +11,7 @@ utility.io
 - parse_focal_set(cell: str) -> FrozenSet[str]
 - format_set(fs: FrozenSet[str]) -> str
 - load_bbas(df: pd.DataFrame)
-      读取 *DataFrame*，返回 [(name, bba_dict), …] 及焦元列顺序
+      读取 *DataFrame*，返回 [BBA, …] 及焦元列顺序
 
 约定
 ----
@@ -63,12 +63,13 @@ def _row_to_bba(row: pd.Series, focal_cols: List[str]) -> BBA:
     mass: Dict[FrozenSet[str], float] = {}
     for col in focal_cols:
         mass[parse_focal_set(col)] = float(row[col])
-    return BBA(mass)
+    name = str(row.get("BBA", "m"))
+    return BBA(mass, name=name)
 
 
-def load_bbas(df: pd.DataFrame, ) -> Tuple[List[Tuple[str, BBA]], List[str]]:
+def load_bbas(df: pd.DataFrame, ) -> Tuple[List[BBA], List[str]]:
     """
-    读取 *DataFrame* 并返回 **[(名称, bba_dict), …]** 及焦元列顺序。
+    读取 *DataFrame* 并返回 ``[BBA, …]`` 及焦元列顺序。
 
     Parameters
     ----------
@@ -78,36 +79,33 @@ def load_bbas(df: pd.DataFrame, ) -> Tuple[List[Tuple[str, BBA]], List[str]]:
     Returns
     -------
     list
-        ``[(name, BBA), …]``  （返回名称与 :class:`BBA` 对象列表）
+        ``[BBA, …]``  （返回 :class:`BBA` 对象列表）
     list
         焦元列标题顺序，用于后续 DataFrame 重建保持对齐。
     """
 
     # 提取列名（跳过 'BBA' 列）作为焦元表示
     focal_cols = [c for c in df.columns if c != "BBA"]
-    bbas: List[Tuple[str, BBA]] = []
+    bbas: List[BBA] = []
     for _, row in df.iterrows():
-        name = str(row.get("BBA", "m"))
-        # 将列名转焦元集合，行值转质量
-        mass = {parse_focal_set(col): float(row[col]) for col in focal_cols}
-        bbas.append((name, BBA(mass)))  # 存储名称与 BBA
+        bbas.append(_row_to_bba(row, focal_cols))
     return bbas, focal_cols
 
 
-def ensure_focal_order(bbas: List[Tuple[str, BBA]], order: List[str] | None) -> List[str]:
+def ensure_focal_order(bbas: List[BBA], order: List[str] | None) -> List[str]:
     """若未给定焦元顺序, 根据 BBA 联合帧自动生成."""
     if order is not None:
         return order
     # 收集所有焦元并按 BBA 内部顺序排序
     all_sets = set()
-    for _, bba in bbas:
+    for bba in bbas:
         all_sets.update(bba.keys())
     sorted_sets = sorted(all_sets, key=BBA._set_sort_key)  # type: ignore[attr-defined]
     return [BBA.format_set(fs) for fs in sorted_sets]
 
 
 def save_bbas(
-        bbas: List[Tuple[str, BBA]],
+        bbas: List[BBA],
         focal_cols: List[str] | None = None,
         out_path: str | None = None,
         default_name: str = "generated.csv",
@@ -116,7 +114,7 @@ def save_bbas(
 ) -> None:
     """保存多条 BBA 到 CSV, 格式与 ``data/examples`` 中一致."""
     cols = ensure_focal_order(bbas, focal_cols)
-    rows = [[name] + bba.to_series(cols) for name, bba in bbas]
+    rows = [[bba.name] + bba.to_series(cols) for bba in bbas]
     df = pd.DataFrame(rows, columns=["BBA"] + cols)
 
     if out_path is None:
@@ -130,7 +128,6 @@ def save_bbas(
 
 def save_bba(
         bba: BBA,
-        name: str = "m",
         focal_cols: List[str] | None = None,
         out_path: str | None = None,
         default_name: str = "generated.csv",
@@ -138,5 +135,5 @@ def save_bba(
         float_format: str = "%.6f",
 ) -> None:
     """保存单条 BBA 到 CSV."""
-    save_bbas([(name, bba)], focal_cols, out_path, default_name,
+    save_bbas([bba], focal_cols, out_path, default_name,
               float_format=float_format)

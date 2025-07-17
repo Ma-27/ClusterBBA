@@ -126,7 +126,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
     clus = initialize_empty_cluster("Clus")
     # 每次实验先随机选一条基线 BBA
     base_name, base_bba = random.choice(BASE_BBAS)
-    clus.add_bba("m0", base_bba)
+    clus.add_bba(base_bba)
 
     prev_ent = limit_entropy(clus.get_centroid())
     entropies = [prev_ent]
@@ -141,7 +141,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
         m = perturb_bba(base_bba, delta)
         print(f"Round {r} base={base_name} delta={delta}")
         _print_bba(f"m{r}", m)
-        clus.add_bba(f"m{r}", m)
+        clus.add_bba(m)
 
         ent = limit_entropy(clus.get_centroid())
         diff = abs(ent - prev_ent)

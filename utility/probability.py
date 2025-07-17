@@ -7,7 +7,7 @@
 接口
 ----
 - ``Probability`` : 概率分布数据结构，保存名称与识别框架；
-- ``pignistic(bba, name=None)`` : 将 :class:`BBA` 转为概率分布；
+- ``pignistic(bba)`` : 将 :class:`BBA` 转为概率分布；
 - ``argmax(prob)`` : 返回概率最大的命题及其概率值。
 """
 
@@ -58,14 +58,14 @@ class Probability(dict):
 
 # -------------------------- Pignistic 转换 -------------------------- #
 
-def pignistic(bba: BBA, name: str | None = None) -> Probability:
+def pignistic(bba: BBA) -> Probability:
     """将 ``bba`` 转换为 Pignistic 概率分布 ``BetP``。"""
 
     frame = bba.frame
     result: Dict[FrozenSet[str], float] = {frozenset({e}): 0.0 for e in frame}
     total = 1.0 - bba.get_mass(frozenset())
     if total <= 0:
-        return Probability(result, frame=frame, name=name)
+        return Probability(result, frame=frame, name=bba.name)
 
     for focal, mass in bba.items():
         if not focal or mass == 0:
@@ -74,7 +74,7 @@ def pignistic(bba: BBA, name: str | None = None) -> Probability:
         for elem in focal:
             result[frozenset({elem})] += share
 
-    return Probability(result, frame=frame, name=name)
+    return Probability(result, frame=frame, name=bba.name)
 
 
 def argmax(prob: Probability) -> Tuple[FrozenSet[str], float]:
