@@ -13,7 +13,7 @@ from typing import Dict, List, Tuple, Optional
 
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
-from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS
+from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS, DP_PENALTY
 from divergence.bjs import bjs_metric
 from divergence.rd_ccjs import divergence_matrix  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
@@ -22,6 +22,7 @@ from utility.bba import BBA
 __all__ = [
     "MultiClusters",
     "construct_clusters_by_sequence",
+    "construct_clusters_by_sequence_dp",
 ]
 
 
@@ -267,4 +268,54 @@ def construct_clusters_by_sequence(bbas: List[Tuple[str, BBA]], debug: bool = Fa
     mc = MultiClusters(debug=debug)
     for name, bba in bbas:
         mc.add_bba_by_reward(name, bba)
+    return mc
+
+
+def construct_clusters_by_sequence_dp(bbas: List[Tuple[str, BBA]], debug: bool = False) -> "MultiClusters":
+    """使用动态规划寻找 ``D_intra`` 最小的全局簇划分。
+
+    为了避免分簇结果受 BBA 加入顺序影响，函数内部会先按名称
+    对 ``bbas`` 进行排序，再在此固定顺序上执行区间动态规划。
+    代价函数在 ``D_intra`` 的基础上引入 ``DP_PENALTY``，
+    用于抑制所有 BBA 单独成簇的退化解。
+
+    ``debug`` 为 ``False`` 时不输出任何信息。
+    """
+
+    # 统一按照 BBA 名称排序，保证输入顺序的一致性
+    # 根据名称中的数字顺序排序，如 m1, m2, m10 ...
+    def _name_key(item: Tuple[str, BBA]) -> int:
+        name = item[0].lstrip("mM")
+        return int(name) if name.isdigit() else 0
+
+    bbas = sorted(bbas, key=_name_key)
+
+    def _cluster_cost(named: List[Tuple[str, BBA]]) -> float:
+        clus = initialize_empty_cluster(name="tmp")
+        for n, b in named:
+            clus.add_bba(n, b, _init=True)
+        di = clus.intra_divergence() or 0.0
+        # 加入惩罚项，避免出现过多簇
+        return di + DP_PENALTY
+
+    n = len(bbas)
+    dp: List[Tuple[float, List[List[Tuple[str, BBA]]]]] = [(float("inf"), []) for _ in range(n + 1)]
+    dp[0] = (0.0, [])
+
+    for i in range(1, n + 1):
+        best_val = float("inf")
+        best_part: List[List[Tuple[str, BBA]]] = []
+        for j in range(0, i):
+            cost = _cluster_cost(bbas[j:i]) + dp[j][0]
+            if cost < best_val:
+                best_val = cost
+                best_part = dp[j][1] + [bbas[j:i]]
+        dp[i] = (best_val, best_part)
+
+    mc = MultiClusters(debug=debug)
+    for idx, clus_bbas in enumerate(dp[n][1], start=1):
+        clus = initialize_empty_cluster(name=f"Clus{idx}")
+        for n_bba, b in clus_bbas:
+            clus.add_bba(n_bba, b, _init=True)
+        mc.add_cluster(clus)
     return mc

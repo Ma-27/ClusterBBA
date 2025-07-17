@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import random
 import sys
 from typing import List
 
@@ -19,8 +20,11 @@ if BASE_DIR not in sys.path:
 import pandas as pd
 
 # 依赖本项目内现成工具函数 / 模块
-from cluster.multi_clusters import construct_clusters_by_sequence  # type: ignore
-from utility.io import load_bbas  # type: ignore
+from cluster.multi_clusters import (
+    construct_clusters_by_sequence,
+    construct_clusters_by_sequence_dp,
+)  # type: ignore
+from utility.io import load_bbas, ensure_focal_order  # type: ignore
 
 
 def _process_csv_path(argv: List[str], default_csv: str) -> str:
@@ -29,12 +33,20 @@ def _process_csv_path(argv: List[str], default_csv: str) -> str:
     return default_csv
 
 
-def print_cluster_elements(csv_path: str) -> None:
+def print_cluster_elements(csv_path: str, use_dp: bool = False) -> None:
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
 
     # 使用构建接口批量加入 BBA
-    mc = construct_clusters_by_sequence(bbas)
+    if use_dp:
+        random.shuffle(bbas)
+        order = ensure_focal_order(bbas, None)
+        rows = [[name] + bba.to_series(order) for name, bba in bbas]
+        df_bba = pd.DataFrame(rows, columns=["BBA"] + order)
+        print(df_bba.to_markdown(tablefmt="github", floatfmt=".4f"))
+        mc = construct_clusters_by_sequence_dp(bbas)
+    else:
+        mc = construct_clusters_by_sequence(bbas)
 
     clusters = mc._clusters
     print(f"Number of clusters: {len(clusters)}")
@@ -53,9 +65,17 @@ if __name__ == "__main__":  # pragma: no cover
         print(f"默认 CSV 文件不存在: {default_csv}")
         sys.exit(1)
 
-    csv_path = _process_csv_path(sys.argv[1:], default_csv)
+    # todo 你可以选择是否启用动态规划，原始研究中是不启用的，但是启用了之后，分簇结果会好很多。
+    # 在添加 BBA 的选簇策略时，是否应该使用动态规划。动态规划搜索的是全局最优解，能克服在线贪心收益计算中，分簇不稳定的问题。
+    use_dp = False
+    args = sys.argv[1:]
+    if "--dp" in args:
+        use_dp = True
+        args.remove("--dp")
+
+    csv_path = _process_csv_path(args, default_csv)
     try:
-        print_cluster_elements(csv_path)
+        print_cluster_elements(csv_path, use_dp=use_dp)
     except Exception as e:
         print("ERROR:", e)
         sys.exit(1)
