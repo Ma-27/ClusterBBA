@@ -1,6 +1,6 @@
 # data_preparation_drybeans.py
 # 复现“区间数 + BPA”生成流程（Dry Beans 数据集）
-# 与 data_preparation_iris.py 保持相同接口与注释风格
+
 from pathlib import Path
 
 import numpy as np
@@ -11,8 +11,9 @@ SEED = 42  # 随机种子
 BETA = 5  # 相似度支持系数 β  (式 20)
 TOP_K = 5  # “取 5”——只保留 Fisher score 最高的 5 个特征
 TRAIN_RATIO = 0.1  # 训练集占比，可按论文 1 调整 0.1~0.9
-CLASSES = ['Seker', 'Barbunya', 'Cali', 'Dermason']  # 同论文 1 取 4 类
-DATA_PATH = Path('../../DryBeanDataset/Dry_Beans_Dataset.xlsx')  # UCI 原始文件
+CLASSES = ['SEKER', 'BARBUNYA', 'CALI', 'DERMASON']  # 同论文 1 取 4 类
+BASE_DIR = Path(__file__).resolve().parent
+DATA_PATH = BASE_DIR.parent / 'dataset_dry_bean' / 'Dry_Beans_Dataset.csv'  # UCI 原始文件
 
 
 # ------------------ 工具函数 ------------------
@@ -51,7 +52,7 @@ def normalize(bpa_vec):
 
 # ------------------ 数据加载与预处理 ------------------
 def load_drybeans():
-    df = pd.read_excel(DATA_PATH)
+    df = pd.read_csv(DATA_PATH)
     df = df[df['Class'].isin(CLASSES)].reset_index(drop=True)
     # Fisher score 排序并取前 K 个特征
     best_feats = fisher_score(df, 'Class')[:TOP_K]

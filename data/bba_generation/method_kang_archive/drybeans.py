@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import itertools
 import math
-import os
 import random
 import zipfile
 from collections import defaultdict
 from io import BytesIO
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -14,10 +14,15 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
+# 数据集目录（与当前文件同级的上级目录）
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR.parent / 'dataset_dry_bean'
+CSV_PATH = DATA_DIR / 'Dry_Beans_Dataset.csv'
 
-def download_dry_beans(csv_output_path='Dry_Beans_Dataset.csv'):
-    # 如果已有CSV文件，直接读取返回
-    if os.path.exists(csv_output_path):
+
+def download_dry_beans(csv_output_path: Path = CSV_PATH) -> pd.DataFrame:
+    """下载并缓存 Dry Beans 数据集，如已存在则直接读取。"""
+    if csv_output_path.exists():
         print(f'检测到已有文件：{csv_output_path}，将直接加载...')
         return pd.read_csv(csv_output_path)
 
@@ -31,12 +36,13 @@ def download_dry_beans(csv_output_path='Dry_Beans_Dataset.csv'):
 
     # 解压并读取 Excel 文件
     with zipfile.ZipFile(zip_data, 'r') as zip_ref:
-        zip_ref.extractall('DryBeans')
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        zip_ref.extractall(DATA_DIR)
         xlsx_file = [f for f in zip_ref.namelist() if f.endswith('.xlsx')][0]
         print(f"成功解压：{xlsx_file}")
 
     # 读取 Excel 并保存为 CSV
-    df = pd.read_excel(os.path.join('../DryBeans', xlsx_file))
+    df = pd.read_excel(DATA_DIR / xlsx_file)
     df.to_csv(csv_output_path, index=False)
     print(f"CSV 文件已保存为：{csv_output_path}")
     return df
@@ -296,7 +302,7 @@ if __name__ == '__main__':
     print(df.head())
 
     acc, y_true, y_hat = experiment(
-        csv_path='../../DryBeanDataset/Dry_Beans_Dataset.csv',
+        csv_path=str(CSV_PATH),
         random_state=42,
         alpha=5.0,
         train_ratio=0.4

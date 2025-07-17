@@ -13,9 +13,11 @@ SEED = 42  # 随机种子
 BETA = 5  # 相似度支持系数 β  (式 20)
 TOP_K = 5  # “取 5”——只保留 Fisher score 最高的 5 个特征
 TRAIN_RATIO = 0.1  # 训练集占比，可按论文 1 调整 0.1~0.9
-CLASSES = ['Seker', 'Barbunya', 'Cali', 'Dermason']  # 与论文 1 保持一致，仅取 4 类
-DATA_PATH = Path('../../DryBeanDataset/Dry_Beans_Dataset.xlsx')  # UCI 原始文件
-CSV_PATH = Path('../../DryBeanDataset/Dry_Beans_Dataset.csv')  # 本地缓存的 CSV 文件
+CLASSES = ['SEKER', 'BARBUNYA', 'CALI', 'DERMASON']  # 与论文 1 保持一致，仅取 4 类
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR.parent / 'dataset_dry_bean'
+DATA_PATH = DATA_DIR / 'Dry_Beans_Dataset.xlsx'  # UCI 原始文件
+CSV_PATH = DATA_DIR / 'Dry_Beans_Dataset.csv'  # 本地缓存的 CSV 文件
 
 
 # ------------------ Fisher score 相关 ------------------
@@ -69,9 +71,11 @@ def download_dry_beans():
     resp = requests.get(url)
     resp.raise_for_status()
     with zipfile.ZipFile(BytesIO(resp.content)) as zf:
-        zf.extractall('DryBeans')
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        zf.extractall(DATA_DIR)
         xlsx = next(f for f in zf.namelist() if f.endswith('.xlsx'))
-        df = pd.read_excel(Path('../DryBeans') / xlsx)
+        df = pd.read_excel(DATA_DIR / xlsx)
+        CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(CSV_PATH, index=False)
         print('已保存 CSV ->', CSV_PATH)
     return CSV_PATH
