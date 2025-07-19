@@ -24,12 +24,14 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 # 依赖本项目内现成工具函数 / 模块
+import config
 from config import PROGRESS_NCOLS
 from fusion.ds_rule import combine_multiple
 from fusion.murphy_rule import murphy_combine
 from fusion.deng_mae_rule import modified_average_evidence
 from fusion.xiao_bjs_rule import xiao_bjs_combine
 from fusion.xiao_rb_rule import xiao_rb_combine
+from fusion.xiao_bjs_pure_rule import xiao_bjs_pure_combine
 from fusion.my_rule import my_combine
 from utility.io_application import load_application_dataset
 from utility.probability import pignistic, argmax
@@ -43,6 +45,7 @@ METHODS = {
     "Murphy": murphy_combine,
     "Deng": modified_average_evidence,
     "Xiao BJS": xiao_bjs_combine,
+    "Xiao BJS Pure": xiao_bjs_pure_combine,
     "Xiao RB": xiao_rb_combine,
     "Proposed": my_combine,
 }
@@ -110,7 +113,23 @@ if __name__ == "__main__":
         default="Proposed",
         help="选择融合规则，此处可以任意更改",
     )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=None,
+        help="覆盖 config.py 中的 ALPHA 超参",
+    )
     args = parser.parse_args()
+
+    # 若指定 alpha, 则覆盖 config.py 中的默认值
+    if args.alpha is not None:
+        config.ALPHA = args.alpha
+        try:
+            import fusion.my_rule as my_rule
+
+            my_rule.ALPHA = args.alpha
+        except Exception:
+            pass
 
     # fixme 如果 --full 参数未指定，则仅评估前 2 条样本
     # debug = not args.full

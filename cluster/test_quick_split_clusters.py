@@ -46,7 +46,7 @@ def print_cluster_elements(csv_path: str, use_dp: bool = False) -> None:
         print(df_bba.to_markdown(tablefmt="github", floatfmt=".4f"))
         mc = construct_clusters_by_sequence_dp(bbas)
     else:
-        mc = construct_clusters_by_sequence(bbas)
+        mc = construct_clusters_by_sequence(bbas, debug=True)
 
     clusters = mc._clusters
     print(f"Number of clusters: {len(clusters)}")
@@ -57,7 +57,7 @@ def print_cluster_elements(csv_path: str, use_dp: bool = False) -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     # todo 默认配置，根据不同的 CSV 文件或 BBA 簇修改
-    example_name = "Example_3_7.csv"
+    example_name = "Example_3_3_3.csv"
 
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     default_csv = os.path.join(base_dir, "data", "examples", example_name)

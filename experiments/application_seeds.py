@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Wine 数据集上的证据融合分类实验
+"""Seeds 数据集上的证据融合分类实验
 =================================
 
-使用 :func:`utility.io_application.load_application_dataset` 读取``kfold_xu_bba_wine.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
+使用 :func:`utility.io_application.load_application_dataset` 读取``kfold_xu_bba_seeds.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ from utility.io_application import load_application_dataset
 from utility.probability import pignistic, argmax
 from utility.bba import BBA
 
-LABEL_MAP = {"C1": "Class 1", "C2": "Class 2", "C3": "Class 3"}
+LABEL_MAP = {"Ka": "Kama", "Ro": "Rosa", "Ca": "Canadian"}
 
 # 可选融合规则及其对应的实现函数
 METHODS = {
@@ -59,18 +59,10 @@ def run_classification(samples: List[tuple[int, List, str]],
 
     # tqdm 用于显示当前评估进度，PROGRESS_NCOLS 来源于全局配置
     pbar = tqdm(samples, desc="评估进度", ncols=PROGRESS_NCOLS)
-    for idx, bbas, gt in pbar:
+    for _, bbas, gt in pbar:
         # ---------- 预测流程 ---------- #
         # 1. 多条 BBA 先经指定规则融合
-        try:
-            fused = combine_func(bbas)
-        except ValueError as err:
-            if method_name == "Dempster":
-                # DS 规则完全冲突时，退回 Murphy 方法继续
-                print(f"样本 {idx} DS 组合失败，改用 Murphy 规则: {err}")
-                fused = murphy_combine(bbas)
-            else:
-                raise
+        fused = combine_func(bbas)
         # 2. 对融合后的 BBA 进行 Pignistic 转换得到概率分布
         prob = pignistic(fused)
         # 3. 取概率最大的焦元作为预测结果
@@ -109,16 +101,16 @@ def run_classification(samples: List[tuple[int, List, str]],
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="在 Wine 数据集上进行证据融合分类")
+        description="在 Seeds 数据集上进行证据融合分类")
     parser.add_argument("--full", action="store_true",
-                        help="评估全部 178 条样本")
+                        help="评估全部 210 条样本")
 
     # fixme 指定融合规则：从 METHODS 字典中取出对应的函数和名称
     parser.add_argument(
         "--method",
         type=str,
         choices=list(METHODS.keys()),
-        default="Proposed",
+        default="Dempster",
         help="选择融合规则，此处可以任意更改",
     )
     parser.add_argument(
@@ -143,7 +135,7 @@ if __name__ == "__main__":
     debug = args.full
 
     # fixme CSV 文件路径，根据实验灵活修改
-    csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_wine.csv"
+    csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_seeds.csv"
 
     method_name = args.method
     combine_func = METHODS[method_name]
