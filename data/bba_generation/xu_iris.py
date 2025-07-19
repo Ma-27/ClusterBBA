@@ -134,6 +134,17 @@ def ensure_dir(path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
 
 
+def normalize_round(values: np.ndarray, decimals: int = 4) -> np.ndarray:
+    """四舍五入并归一化数组, 保证和为 1。"""
+
+    rounded = np.round(values, decimals)
+    diff = round(1.0 - rounded.sum(), decimals)
+    if diff != 0:
+        idx = int(np.argmax(rounded))
+        rounded[idx] = round(rounded[idx] + diff, decimals)
+    return rounded
+
+
 def generate_bba_dataframe(
         X_all,
         y_all,
@@ -204,7 +215,8 @@ def generate_bba_dataframe(
             # 按降序排序并构造嵌套子集
             order = np.argsort(pdf_vals)[::-1]
             w_r = pdf_vals[order]
-            masses = w_r / w_r.sum()
+            # 强制归一化质量
+            masses = normalize_round(w_r / w_r.sum(), decimals)
             # 定义七种命题名称对应顺序：
             # {Vi}, {Ve}, {Se}, {Vi ∪ Ve}, {Vi ∪ Se}, {Ve ∪ Se}, {Vi ∪ Ve ∪ Se}
             # 初始化质量字典，键与输出列名保持一致

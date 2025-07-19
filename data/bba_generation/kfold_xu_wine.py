@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Iris 数据集 5 折交叉验证版 BBA 生成器
-====================================
+"""Wine 数据集 K 折交叉验证版 BBA 生成器
+=====================================
 
-本脚本基于 :mod:`xu_iris` 中实现的生成流程, 对 ``Iris`` 数据集进行``K`` 折交叉验证 (默认为 :data:`config.K_FOLD_SPLITS`=5) 。在每个折上重建 ``Box-Cox`` 变换和正态分布模型, 并按 Xu 等人提出的方法为每个样本、每个属性生成 BBA。生成的所有折被合并保存至 ``kfold_xu_bba_iris.csv``，其中额外记录 ``fold`` 序号, ``dataset_split`` 字段统一填写 ``unknown``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
+基于 :mod:`xu_wine` 实现的生成流程，对 ``Wine`` 数据集进行 ``K`` 折交叉验证
+(默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和
+正态分布模型，按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至
+``kfold_xu_bba_wine.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统
+一填写 ``unknown``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
 """
 
 from __future__ import annotations
@@ -23,22 +27,22 @@ if str(BASE_DIR) not in sys.path:
 from config import K_FOLD_SPLITS
 
 # 默认随机种子，可通过命令行覆盖
-DEFAULT_RANDOM_STATE = 999
-from data.bba_generation.xu_iris import (
-    IrisDataset,
+DEFAULT_RANDOM_STATE = 1800
+from data.bba_generation.xu_wine import (
+    WineDataset,
     generate_bba_dataframe,
     ensure_dir,
-    load_iris_data,
+    load_wine_data,
     compute_offsets,
     fit_parameters,
 )
 
 # 输出 CSV 文件保存到 data/bba_generation 同级目录
-CSV_PATH = Path(__file__).resolve().parents[1] / "kfold_xu_bba_iris.csv"
+CSV_PATH = Path(__file__).resolve().parents[1] / "kfold_xu_bba_wine.csv"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="生成 Iris 数据集 K 折交叉验证版 BBA")
+        description="生成 Wine 数据集 K 折交叉验证版 BBA")
     parser.add_argument(
         "--random_state",
         type=int,
@@ -48,28 +52,28 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # ---------- Step-0: 读取基础数据 ----------
-    X_all, y_all, attr_names, class_names, full_class_names = load_iris_data()
+    X_all, y_all, attr_names, class_names, full_class_names = load_wine_data()
     n_class = len(class_names)
     n_attr = len(attr_names)
 
-    # 创建分层 K 折迭代器, 保证各折类别分布一致 todo 这个种子对最后的结果影响蛮大的...
+    # 创建分层 K 折迭代器，保证各折类别分布一致
     skf = StratifiedKFold(
         n_splits=K_FOLD_SPLITS, shuffle=True, random_state=args.random_state)
     # 每个折生成的 BBA DataFrame 将存入此列表, 最后再合并
     fold_frames = []
 
     for fold, (train_idx, test_idx) in enumerate(skf.split(X_all, y_all)):
-        # ---------- Step-1: 按当前折划分训练/测试集 ----------
+        # ---------- Step-1: 划分当前折训练/测试集 ----------
         X_tr = X_all[train_idx].copy()
         y_tr = y_all[train_idx].copy()
         X_te = X_all[test_idx].copy()
         y_te = y_all[test_idx].copy()
 
         # 包装成自定义 Dataset，便于后续抽样访问
-        train_dataset = IrisDataset(X_tr, y_tr, attr_names, class_names)
-        test_dataset = IrisDataset(X_te, y_te, attr_names, class_names)
+        train_dataset = WineDataset(X_tr, y_tr, attr_names, class_names)
+        test_dataset = WineDataset(X_te, y_te, attr_names, class_names)
 
-        # Iris 属性均为正，仍以训练集最小值校正，确保 Box-Cox 有效
+        # Wine 属性均为正，仍以训练集最小值校正，确保 Box-Cox 有效
         offsets = compute_offsets(X_tr)
         X_tr += offsets
         X_te += offsets
@@ -113,7 +117,9 @@ if __name__ == "__main__":
 
         # 调整列顺序: dataset_split 之后插入 fold
         cols = df_fold.columns.tolist()
-        meta_cols = ["sample_index", "ground_truth", "dataset_split", "fold", "attribute", "attribute_data"]
+        meta_cols = [
+            "sample_index", "ground_truth", "dataset_split", "fold", "attribute", "attribute_data"
+        ]
         rest_cols = [c for c in cols if c not in meta_cols]
         df_fold = df_fold[meta_cols + rest_cols]
 
@@ -130,7 +136,8 @@ if __name__ == "__main__":
     counts = df_all["sample_index"].value_counts()
     if len(counts) != len(X_all) or not (counts == n_attr).all():
         raise AssertionError("每个样本应恰好出现一次且拥有完整属性")
-    # 按 sample_index、属性顺序 (SL, SW, PL, PW) 排序
+
+    # 按 sample_index、属性顺序 (Alc, Mal, ...) 排序
     attr_order = {attr: i for i, attr in enumerate(attr_names)}
     df_all["_attr_order"] = df_all["attribute"].map(attr_order)
     df_all = df_all.sort_values(by=["sample_index", "_attr_order"]).reset_index(drop=True)

@@ -89,6 +89,17 @@ def ensure_dir(path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
 
 
+def normalize_round(values: np.ndarray, decimals: int = 4) -> np.ndarray:
+    """四舍五入并归一化数组, 保证和为 1。"""
+
+    rounded = np.round(values, decimals)
+    diff = round(1.0 - rounded.sum(), decimals)
+    if diff != 0:
+        idx = int(np.argmax(rounded))
+        rounded[idx] = round(rounded[idx] + diff, decimals)
+    return rounded
+
+
 def generate_bba_dataframe(
         X_all,
         y_all,
@@ -136,7 +147,7 @@ def generate_bba_dataframe(
             pdf_vals = stats.norm.pdf(x_val_trans, loc=mus[:, j], scale=sigmas[:, j])
             order = np.argsort(pdf_vals)[::-1]
             w_r = pdf_vals[order]
-            masses = w_r / w_r.sum()
+            masses = normalize_round(w_r / w_r.sum(), 4)
             mass_dict = {
                 '{Ka}': 0.0,
                 '{Ro}': 0.0,
