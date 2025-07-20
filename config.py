@@ -12,6 +12,7 @@ SCALE_EPSILON: float = 4e-3
 INTRA_EPS: float = 1e-6
 
 # 单簇单元判断阈值，本质是 BJS 阈值，用于处理单簇单元 (K=1, n1=1) 边界
+# TODO 此值可能严重影响初始划分结果
 THRESHOLD_BJS: float = 0.5571
 
 # RD_CCJS 随机二分次数

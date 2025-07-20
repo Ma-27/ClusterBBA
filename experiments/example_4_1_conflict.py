@@ -46,7 +46,7 @@ CONSECUTIVE_STOP_ROUNDS = 5
 
 # ------------------------------ 基线设置 ------------------------------ #
 
-def load_base_bbas(csv_name: str) -> List[tuple[str, BBA]]:
+def load_base_bbas(csv_name: str) -> List[BBA]:
     """从 ``data/examples`` 中读取名为 ``csv_name`` 的所有基线 BBA"""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     csv_path = os.path.join(base_dir, "..", "data", "examples", csv_name)
@@ -67,7 +67,7 @@ def has_converged(diff_history: deque[float], eps: float, need_rounds: int) -> b
 
 # ------------------------------ 工具函数 ------------------------------ #
 
-def perturb_bba(base: BBA, delta: float) -> BBA:
+def perturb_bba(base: BBA, delta: float, name: str | None = None) -> BBA:
     """在 `base` 上加入 L¹-幅度为 `delta` 的随机扰动（一次性保证合法）。
 
     - 噪声零和，L¹=δ
@@ -95,7 +95,7 @@ def perturb_bba(base: BBA, delta: float) -> BBA:
 
     # 4) 封装为 BBA（去掉极小噪声）
     mass = {fs: float(v) for fs, v in zip(focals, new_vec) if v > 1e-12}
-    return BBA(mass, frame=base.frame)
+    return BBA(mass, frame=base.frame, name=name)
 
 
 def limit_entropy(bba: BBA, eps: float = 1e-3, max_iter: int = 50) -> float:
@@ -125,20 +125,21 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
     """
     clus = initialize_empty_cluster("Clus")
     # 每次实验先随机选一条基线 BBA
-    base_name, base_bba = random.choice(BASE_BBAS)
+    base_bba = random.choice(BASE_BBAS)
+    base_name = base_bba.name
     clus.add_bba(base_bba)
 
     prev_ent = limit_entropy(clus.get_centroid())
     entropies = [prev_ent]
     diff_hist: deque[float] = deque(maxlen=need_rounds)
 
-    print(f"Round 0 (baseline: {base_name})")
+    print(f"Round 0 (baseline: {base_bba.name})")
     _print_bba("m0", base_bba)
 
     for r in range(1, rounds + 1):
         # 每轮重新选随机 BBA 并添加随机扰动
-        base_name, base_bba = random.choice(BASE_BBAS)
-        m = perturb_bba(base_bba, delta)
+        base_bba = random.choice(BASE_BBAS)
+        m = perturb_bba(base_bba, delta, name=f"{base_bba.name}_p{r}")
         print(f"Round {r} base={base_name} delta={delta}")
         _print_bba(f"m{r}", m)
         clus.add_bba(m)

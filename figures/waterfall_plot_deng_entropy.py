@@ -48,7 +48,7 @@ _fractal_funcs = {
 def _centroid_entropy(clus, func):
     """根据指定分形函数计算簇心 Deng 熵。"""
     # 收集簇中所有 BBA
-    bbas = [b for _, b in clus.get_bbas()]
+    bbas = clus.get_bbas()
     if not bbas:
         return float("nan")
     # 分形函数需要知道当前最高阶数 h

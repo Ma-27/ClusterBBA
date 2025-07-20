@@ -39,8 +39,9 @@ def _load_example_bbas() -> tuple[BBA, BBA]:
     csv_path = os.path.normpath(csv_path)
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
-    lookup = {n: b for n, b in bbas}
-    return lookup["m1"], lookup["m2"]
+    m1 = next(b for b in bbas if b.name == "m1")
+    m2 = next(b for b in bbas if b.name == "m2")
+    return m1, m2
 
 
 # ------------------------------ 核心计算 ------------------------------ #
@@ -68,9 +69,12 @@ def compute_sup_rate(alphas: List[float], clones: List[int]) -> pd.DataFrame:
     for n in clones:
         c1 = initialize_empty_cluster("Clus1")
         for i in range(n + 1):
-            c1.add_bba(m1, _init=True)
+            clone = BBA(dict(m1), frame=m1.frame,
+                        name=f"{m1.name}_{i}")
+            c1.add_bba(clone, _init=True)
         c2 = initialize_empty_cluster("Clus2")
-        c2.add_bba(m2, _init=True)
+        c2.add_bba(BBA(dict(m2), frame=m2.frame, name=f"{m2.name}_0"),
+                   _init=True)
 
         dists_c1 = _avg_intra_distances(c1)
         dists_c2 = _avg_intra_distances(c2)

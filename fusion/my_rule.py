@@ -93,18 +93,21 @@ def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List
         D_i_map[only.name] = 0.0
 
     Sup: Dict[str, float] = {}
+    # 计算每条证据的支持度 Sup_{i,j}
     for clus in clusters:
         names_bbas = clus.get_bbas()
         n_i = len(names_bbas)
+        # 计算每个簇的簇内散度
         intra = _cluster_intra_dist(names_bbas)
         # 该簇与其他簇的平均散度
         D_i = D_i_map.get(clus.name, 0.0)
         for b in names_bbas:
             d_ij = intra.get(b.name, 0.0)
+            # 合并加权支持度 Sup_{i,j}
             sup = (n_i ** ALPHA) * math.exp(-LAMBDA * d_ij) * math.exp(-MU * D_i)
             Sup[b.name] = sup
 
-    # 归一化得到 Crd_{i,j}
+    # 归一化 支持度 Sup_{i,j} 得到 Crd_{i,j}
     total = sum(Sup.values())
     order = names if names is not None else [b.name for b in bbas]
     weights = [Sup[n] / total for n in order]

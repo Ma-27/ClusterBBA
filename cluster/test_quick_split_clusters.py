@@ -44,9 +44,11 @@ def print_cluster_elements(csv_path: str, use_dp: bool = False) -> None:
         rows = [[bba.name] + bba.to_series(order) for bba in bbas]
         df_bba = pd.DataFrame(rows, columns=["BBA"] + order)
         print(df_bba.to_markdown(tablefmt="github", floatfmt=".4f"))
+        # 可以选择是否开启 debug 模式。
         mc = construct_clusters_by_sequence_dp(bbas)
     else:
-        mc = construct_clusters_by_sequence(bbas, debug=True)
+        # 可以选择是否开启 debug 模式。
+        mc = construct_clusters_by_sequence(bbas)
 
     clusters = mc._clusters
     print(f"Number of clusters: {len(clusters)}")
@@ -65,7 +67,7 @@ if __name__ == "__main__":  # pragma: no cover
         print(f"默认 CSV 文件不存在: {default_csv}")
         sys.exit(1)
 
-    # todo 你可以选择是否启用动态规划，原始研究中是不启用的，但是启用了之后，分簇结果会好很多。
+    # todo 你可以选择是否启用动态规划，原始研究中是不启用的，但是启用了之后，数值更加不稳定了。
     # 在添加 BBA 的选簇策略时，是否应该使用动态规划。动态规划搜索的是全局最优解，能克服在线贪心收益计算中，分簇不稳定的问题。
     use_dp = False
     args = sys.argv[1:]

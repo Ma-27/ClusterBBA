@@ -2,18 +2,17 @@
 """多簇管理模块
 ===============
 
-提供 ``MultiClusters`` 类以统一管理多个 ``Cluster`` 对象，并根据
-BBA 的收益策略完成自动分簇流程。
+提供 ``MultiClusters`` 类以统一管理多个 ``Cluster`` 对象，并根据 BBA 的收益策略完成自动分簇流程。
 """
 
 from __future__ import annotations
 
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
-from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS, DP_PENALTY
+from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS
 from divergence.bjs import bjs_metric
 from divergence.rd_ccjs import divergence_matrix  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
@@ -45,6 +44,13 @@ class MultiClusters:
         if cluster.name in self._clusters:
             raise ValueError(f"Duplicate cluster name: {cluster.name}")
         self._clusters[cluster.name] = cluster
+        # 新增簇时同步更新 ``_next_id``，以免后续自动命名发生冲突
+        if cluster.name.startswith("Clus"):
+            try:
+                idx = int(cluster.name[4:])
+                self._next_id = max(self._next_id, idx + 1)
+            except ValueError:
+                pass
 
     def get_cluster(self, name: str) -> Cluster:
         """获取指定名称的簇。"""
@@ -223,11 +229,11 @@ class MultiClusters:
             if len(only_cluster.get_bbas()) == 1:
                 old_bba = only_cluster.get_bbas()[0]
                 div = bjs_metric(old_bba, bba)
+                if self._debug:
+                    print(
+                        f"The divergence between {old_bba.name} and {bba.name} is {div:.4f}. The current threshold is {THRESHOLD_BJS:.4f}.")
                 if div <= THRESHOLD_BJS:
                     only_cluster.add_bba(bba)
-                    if self._debug:
-                        print(f"\nSelected cluster: {only_cluster.name} (by threshold rule)")
-                        print()
                     return only_cluster.name
                 target_name = f"Clus{self._next_id}"
                 new_cluster = initialize_empty_cluster(name=target_name)
@@ -235,7 +241,7 @@ class MultiClusters:
                 self._clusters[target_name] = new_cluster
                 self._next_id += 1
                 if self._debug:
-                    print(f"\nSelected cluster: {target_name} (by threshold rule)")
+                    print(f"Selected cluster: {target_name} (by threshold rule)")
                     print()
                 return target_name
 
@@ -267,55 +273,67 @@ def construct_clusters_by_sequence(bbas: List[BBA], debug: bool = False) -> "Mul
     """
     mc = MultiClusters(debug=debug)
     for bba in bbas:
+        if debug:
+            print(f"------------------------------ Round: {bba.name} ------------------------------ ")
         mc.add_bba_by_reward(bba)
     return mc
 
 
 def construct_clusters_by_sequence_dp(bbas: List[BBA], debug: bool = False) -> "MultiClusters":
-    """使用动态规划寻找 ``D_intra`` 最小的全局簇划分。
+    """在固定的 BBA 顺序上使用动态规划搜索最高收益的簇划分。
 
-    为了避免分簇结果受 BBA 加入顺序影响，函数内部会先按名称
-    对 ``bbas`` 进行排序，再在此固定顺序上执行区间动态规划。
-    代价函数在 ``D_intra`` 的基础上引入 ``DP_PENALTY``，
-    用于抑制所有 BBA 单独成簇的退化解。
+    参数 ``bbas`` 的顺序不会被修改, 函数会在此顺序基础上枚举所有可能的区间划分。每一种划分都会计算一次全局收益``RD_{CCJS}/D_{intra}``, 返回收益最高的结果。
 
     ``debug`` 为 ``False`` 时不输出任何信息。
     """
 
-    # 统一按照 BBA 名称排序，保证输入顺序的一致性
-    # 根据名称中的数字顺序排序，如 m1, m2, m10 ...
-    def _name_key(b: BBA) -> int:
-        name = b.name.lstrip("mM")
-        return int(name) if name.isdigit() else 0
+    def _partition_reward(partition: List[List[BBA]]) -> Optional[float]:
+        """给定一个 BBA 划分, 计算其全局收益。"""
+        clusters: List[Cluster] = []
+        for idx, seg in enumerate(partition, start=1):
+            # 将当前区间 ``seg`` 转换为临时簇，便于后续统一计算收益
+            clus = initialize_empty_cluster(name=f"Tmp{idx}")
+            for b in seg:
+                # 枚举区间中的每个 BBA，依次加入临时簇
+                clus.add_bba(b, _init=True)
+            clusters.append(clus)
 
-    bbas = sorted(bbas, key=_name_key)
-
-    def _cluster_cost(named: List[BBA]) -> float:
-        clus = initialize_empty_cluster(name="tmp")
-        for b in named:
-            clus.add_bba(b, _init=True)
-        di = clus.intra_divergence() or 0.0
-        # 加入惩罚项，避免出现过多簇
-        return di + DP_PENALTY
+        # 判断此划分是否落在多簇全为单元簇的边界情况
+        all_singletons = len(clusters) >= 2 and all(len(c.get_bbas()) == 1 for c in clusters)
+        # 复用 ``_strategy_reward`` 评价该划分的整体收益
+        return MultiClusters._strategy_reward(clusters, 0, all_singletons)
 
     n = len(bbas)
-    dp: List[Tuple[float, List[List[BBA]]]] = [(float("inf"), []) for _ in range(n + 1)]
+    # dp[i] = (best_reward, best_partition for bbas[:i])
+    # 向量 ``dp`` 记录前 ``i`` 个 BBA 的最优收益及对应划分
+    dp: List[Tuple[float, List[List[BBA]]]] = [(-float("inf"), []) for _ in range(n + 1)]
     dp[0] = (0.0, [])
 
     for i in range(1, n + 1):
-        best_val = float("inf")
+        # 尝试确定前 ``i`` 个 BBA 的最优区间划分
+        best_val = -float("inf")
         best_part: List[List[BBA]] = []
         for j in range(0, i):
-            cost = _cluster_cost(bbas[j:i]) + dp[j][0]
-            if cost < best_val:
-                best_val = cost
-                best_part = dp[j][1] + [bbas[j:i]]
+            # 枚举最后一个分割点 ``j``，区间 [j:i] 作为最后一簇
+            part = dp[j][1] + [bbas[j:i]]
+            r = _partition_reward(part)
+            if r is None:
+                continue
+            if r > best_val:
+                # 更新当前最优收益与划分
+                best_val = r
+                best_part = part
+        # 记录前 ``i`` 个 BBA 的最优解
         dp[i] = (best_val, best_part)
 
+    # 根据动态规划得到的最优划分重新构造 ``MultiClusters`` 对象
     mc = MultiClusters(debug=debug)
     for idx, clus_bbas in enumerate(dp[n][1], start=1):
         clus = initialize_empty_cluster(name=f"Clus{idx}")
         for b in clus_bbas:
+            if debug:
+                print(f"------------------------------ Round: {b.name} ------------------------------ ")
+            # 将对应 BBA 加入新簇
             clus.add_bba(b, _init=True)
         mc.add_cluster(clus)
     return mc

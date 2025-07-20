@@ -40,7 +40,7 @@ print('Intra‑divergence:', clus.intra_divergence())
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import pandas as pd
 
@@ -201,17 +201,20 @@ def initialize_cluster_from_csv(name: str, bba_names: List[str], csv_path: str, 
     df = pd.read_csv(csv_path)
     # 利用 load_bbas 将 DataFrame 转换为 (name, bba_dict) 列表
     all_bbas, _ = load_bbas(df)
-    # 构建一个名称到 BBA 字典的映射，方便快速查找。键: BBA 名称（字符串），值: BBA 对象。
-    lookup: Dict[str, BBA] = {b.name: b for b in all_bbas}
 
-    # 收集在请求列表中但在 CSV 中找不到的名称
-    missing = [n for n in bba_names if n not in lookup]
+    # 按名称依次在列表中查找对应 BBA
+    selected: List[BBA] = []
+    missing: List[str] = []
+    for n in bba_names:
+        match = next((b for b in all_bbas if b.name == n), None)
+        if match is None:
+            missing.append(n)
+        else:
+            selected.append(match)
+
     # 严格模式下，若有缺失名称，直接抛出 KeyError
     if missing and strict:
         raise KeyError(f'BBA 名称未在 CSV 中找到: {missing}')
-
-    # 筛选出存在于 CSV 中的 BBA，忽略缺失项
-    selected: List[BBA] = [lookup[n] for n in bba_names if n in lookup]
 
     # 构造并返回 Cluster 对象，初始化时批量添加 BBA
     return Cluster(name=name, bbas=selected)
