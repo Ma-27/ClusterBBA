@@ -2,11 +2,7 @@
 """Seeds 数据集 K 折交叉验证版 BBA 生成器
 =====================================
 
-基于 :mod:`xu_seeds` 实现的生成流程，对 ``Seeds`` 数据集进行 ``K`` 折交叉验证
-(默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和
-正态分布模型，按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至
-``kfold_xu_bba_seeds.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统
-一填写 ``unknown``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
+基于 :mod:`xu_seeds` 实现的生成流程，对 ``Seeds`` 数据集进行 ``K`` 折交叉验证(默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和正态分布模型，按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至``kfold_xu_bba_seeds.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统一填写 ``unknown``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
 """
 
 from __future__ import annotations

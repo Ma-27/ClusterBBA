@@ -33,10 +33,12 @@ PROGRESS_NCOLS: int = 120
 # Information Volume 中的 epsilon
 IV_EPSILON: float = 0.001
 
-# 专家超参数与灵敏度系数，用于最后的证据融合
+# 专家超参数 $\alpha$，用于最后的证据融合与证据折扣。
 ALPHA: float = 1.0
-LAMBDA: float = 1.0
+# $\mu$ 是簇-簇散度灵敏度系数（小于 1 的话，越小越放大；大于 1 的话，越大越弱化）
 MU: float = 1.0
+# $\lambda$ 是簇内散度灵敏度系数（小于 1 的话，越小越放大；大于 1 的话，越大越弱化）
+LAMBDA: float = 1.0
 
 # 动态规划分簇时对簇数量的惩罚项，防止出现大量单元素簇
 DP_PENALTY: float = 0.1

@@ -12,7 +12,13 @@ from typing import Dict, List, Optional, Tuple
 
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
-from config import THRESHOLD_BJS, SPLIT_TIMES, INTRA_EPS
+from config import (
+    THRESHOLD_BJS,
+    SPLIT_TIMES,
+    INTRA_EPS,
+    LAMBDA as DEFAULT_LAMBDA,
+    MU as DEFAULT_MU,
+)
 from divergence.bjs import bjs_metric
 from divergence.rd_ccjs import divergence_matrix  # type: ignore
 from mean.mean_divergence import average_divergence  # type: ignore
@@ -24,6 +30,10 @@ __all__ = [
     "construct_clusters_by_sequence_dp",
 ]
 
+# 默认超参, 提供给外部可选参数
+LAMBDA: float = DEFAULT_LAMBDA
+MU: float = DEFAULT_MU
+
 
 class MultiClusters:
     """维护整个簇集合 `C` 的高层数据结构。
@@ -31,10 +41,12 @@ class MultiClusters:
     参数 ``debug`` 控制是否在执行过程中打印调试信息。
     """
 
-    def __init__(self, debug: bool = True) -> None:
+    def __init__(self, debug: bool = True, *, lambda_val: float | None = None, mu_val: float | None = None, ) -> None:
         self._clusters: Dict[str, Cluster] = {}
         self._next_id: int = 1  # 自动生成新簇名称使用
         self._debug: bool = debug
+        self.lambda_val = LAMBDA if lambda_val is None else lambda_val
+        self.mu_val = MU if mu_val is None else mu_val
 
     # ------------------------------------------------------------------
     # 基础操作
@@ -140,9 +152,22 @@ class MultiClusters:
         return sum(sum_rd_cc) / len(sum_rd_cc)
 
     @staticmethod
-    def _strategy_reward(clusters: List[Cluster], idx: int, all_singletons: bool = False) -> Optional[float]:
+    def _strategy_reward(clusters: List[Cluster], idx: int, *, lambda_val: float, mu_val: float,
+                         all_singletons: bool = False, ) -> Optional[float]:
         """计算策略 ``k`` 的收益 ``R_k``。``idx`` 为含新 BBA 的簇索引。
-        ``all_singletons`` 标记在调用时是否处于多簇全为单元簇的边界情况，如果是的话，则要执行非常特殊的处理。"""
+
+        ``idx`` 为含新 BBA 的簇索引。 ``all_singletons`` 指示是否处于多簇均为单元簇
+        的特殊边界情形。收益定义为
+
+        .. math::
+
+           R_k=\frac{\bigl(\tfrac{1}{P_k}\sum RD_{CCJS}(Clus_i,Clus_j)\bigr)^{\mu}}
+           {\bigl(\tfrac{1}{K_k}\sum D_{intra}(Clus_i^{+})\bigr)^{\lambda}}
+
+        其中 ``mu_val`` 与 ``lambda_val`` 为灵敏度系数。
+
+        ``all_singletons`` 标记在调用时是否处于多簇全为单元簇的边界情况，如果是的话，则要执行非常特殊的处理。
+        """
         K_k = len(clusters)
         # 单簇多元情形：通过随机二分估计 ``RD_CCJS``
         if K_k == 1:
@@ -172,10 +197,11 @@ class MultiClusters:
         avg_d_intra = sum(d_intras) / K_k
 
         # 防止除以0，为了数值稳定性
-        if avg_d_intra == 0:
-            return None
+        if avg_d_intra <= 0:
+            avg_d_intra = INTRA_EPS
 
-        reward = avg_rd_cc / avg_d_intra
+        # 计算收益，注意，\mu 与 \lambda 是可调的，但是如果不传参就是默认值。
+        reward = (avg_rd_cc ** mu_val) / (avg_d_intra ** lambda_val)
         return reward
 
     # ------------------------------------------------------------------
@@ -199,7 +225,8 @@ class MultiClusters:
             # 获取当前簇
             clones = [self._clone_cluster(c) for c in self._clusters.values()]
             clones[idx].add_bba(bba, _init=True)
-            r = self._strategy_reward(clones, idx, all_singletons)
+            r = self._strategy_reward(clones, idx, lambda_val=self.lambda_val, mu_val=self.mu_val,
+                                      all_singletons=all_singletons, )
             if r is not None:
                 if self._debug:
                     print(f"Strategy {idx + 1} → {cname}: {r:.4f}")
@@ -211,7 +238,9 @@ class MultiClusters:
         new_clus = initialize_empty_cluster(name=f"Clus{self._next_id}")
         new_clus.add_bba(bba, _init=True)
         clones = [self._clone_cluster(c) for c in self._clusters.values()] + [new_clus]
-        r_new = self._strategy_reward(clones, len(clones) - 1, all_singletons)
+        # 新建簇的收益
+        r_new = self._strategy_reward(clones, len(clones) - 1, lambda_val=self.lambda_val, mu_val=self.mu_val,
+                                      all_singletons=all_singletons, )
         if r_new is not None:
             if self._debug:
                 print(f"Strategy {len(clones)} → New Cluster: {r_new:.4f}")
@@ -266,12 +295,14 @@ class MultiClusters:
         return target_name
 
 
-def construct_clusters_by_sequence(bbas: List[BBA], debug: bool = False) -> "MultiClusters":
+def construct_clusters_by_sequence(bbas: List[BBA], debug: bool = False, *, lambda_val: float | None = None,
+                                   mu_val: float | None = None, ) -> "MultiClusters":
     """按照给定顺序批量加入 BBA 并返回 :class:`MultiClusters` 对象。
 
     ``debug`` 为 ``False`` 时不会打印分簇过程信息。
+    ``lambda_val`` 与 ``mu_val`` 控制收益计算中的灵敏度系数。
     """
-    mc = MultiClusters(debug=debug)
+    mc = MultiClusters(debug=debug, lambda_val=lambda_val, mu_val=mu_val)
     for bba in bbas:
         if debug:
             print(f"------------------------------ Round: {bba.name} ------------------------------ ")
@@ -279,12 +310,14 @@ def construct_clusters_by_sequence(bbas: List[BBA], debug: bool = False) -> "Mul
     return mc
 
 
-def construct_clusters_by_sequence_dp(bbas: List[BBA], debug: bool = False) -> "MultiClusters":
+def construct_clusters_by_sequence_dp(bbas: List[BBA], debug: bool = False, *, lambda_val: float | None = None,
+                                      mu_val: float | None = None, ) -> "MultiClusters":
     """在固定的 BBA 顺序上使用动态规划搜索最高收益的簇划分。
 
-    参数 ``bbas`` 的顺序不会被修改, 函数会在此顺序基础上枚举所有可能的区间划分。每一种划分都会计算一次全局收益``RD_{CCJS}/D_{intra}``, 返回收益最高的结果。
+    参数 ``bbas`` 的顺序不会被修改, 函数会在此顺序基础上枚举所有可能的区间划分。每一种划分都会计算一次全局收益 ``R_k``，其定义见 :func:`_strategy_reward`，返回收益最高的结果。
 
     ``debug`` 为 ``False`` 时不输出任何信息。
+    ``lambda_val`` 与 ``mu_val`` 控制收益计算中的灵敏度系数。
     """
 
     def _partition_reward(partition: List[List[BBA]]) -> Optional[float]:
@@ -301,7 +334,8 @@ def construct_clusters_by_sequence_dp(bbas: List[BBA], debug: bool = False) -> "
         # 判断此划分是否落在多簇全为单元簇的边界情况
         all_singletons = len(clusters) >= 2 and all(len(c.get_bbas()) == 1 for c in clusters)
         # 复用 ``_strategy_reward`` 评价该划分的整体收益
-        return MultiClusters._strategy_reward(clusters, 0, all_singletons)
+        return MultiClusters._strategy_reward(clusters, 0, lambda_val=lambda_val, mu_val=mu_val,
+                                              all_singletons=all_singletons, )
 
     n = len(bbas)
     # dp[i] = (best_reward, best_partition for bbas[:i])
@@ -327,7 +361,7 @@ def construct_clusters_by_sequence_dp(bbas: List[BBA], debug: bool = False) -> "
         dp[i] = (best_val, best_part)
 
     # 根据动态规划得到的最优划分重新构造 ``MultiClusters`` 对象
-    mc = MultiClusters(debug=debug)
+    mc = MultiClusters(debug=debug, lambda_val=lambda_val, mu_val=mu_val)
     for idx, clus_bbas in enumerate(dp[n][1], start=1):
         clus = initialize_empty_cluster(name=f"Clus{idx}")
         for b in clus_bbas:

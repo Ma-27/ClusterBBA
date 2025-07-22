@@ -14,9 +14,9 @@ r"""Proposed cluster-based fusion rule
 
 公开接口
 ---------
-- ``my_combine(bbas: List[BBA], names: List[str] | None = None) -> BBA``
-- ``credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List[float]``
-- ``_weighted_average_bba(bbas: List[BBA], names: List[str] | None = None) -> BBA``
+- ``my_combine(bbas: List[BBA], names: List[str] | None = None, *, lambda_val: float | None = None, mu_val: float | None = None) -> BBA``
+- ``credibility_degrees(bbas: List[BBA], names: List[str] | None = None, *, lambda_val: float | None = None, mu_val: float | None = None) -> List[float]``
+- ``_weighted_average_bba(bbas: List[BBA], names: List[str] | None = None, *, lambda_val: float | None = None, mu_val: float | None = None) -> BBA``
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ import numpy as np
 
 # 依赖本项目内现成工具函数 / 模块
 from cluster.multi_clusters import construct_clusters_by_sequence  # type: ignore
-from config import ALPHA, LAMBDA, MU
+from config import ALPHA, LAMBDA as DEFAULT_LAMBDA, MU as DEFAULT_MU
 from divergence.bjs import divergence_matrix as bjs_matrix
 from divergence.rd_ccjs import divergence_matrix as rdcc_matrix  # type: ignore
 from fusion.ds_rule import combine_multiple
@@ -39,6 +39,10 @@ __all__ = [
     "credibility_degrees",
     "_weighted_average_bba",
 ]
+
+# 默认灵敏度系数, 供可选参数使用
+LAMBDA: float = DEFAULT_LAMBDA
+MU: float = DEFAULT_MU
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +63,8 @@ def _cluster_intra_dist(clus_bbas: List[BBA]) -> Dict[str, float]:
     return result
 
 
-def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List[float]:
+def credibility_degrees(bbas: List[BBA], names: List[str] | None = None, *, lambda_val: float | None = None,
+                        mu_val: float | None = None, ) -> List[float]:
     """按照 Proposed 的公式计算每条证据的权重。
 
     Parameters
@@ -68,7 +73,16 @@ def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List
         输入的证据列表。
     names : List[str] | None, optional
         与 ``bbas`` 对应的名称列表，若为 ``None`` 则按 ``m1``、``m2`` … 顺序生成。
+    lambda_val : float, optional
+        控制簇内散度权重的灵敏度系数 ``\\lambda``，默认使用模块级 ``LAMBDA``。
+    mu_val : float, optional
+        控制簇间散度权重的灵敏度系数 ``\\mu``，默认使用模块级 ``MU``。
     """
+    if lambda_val is None:
+        lambda_val = LAMBDA
+    if mu_val is None:
+        mu_val = MU
+
     if not bbas:
         raise ValueError("BBA 列表为空。")
 
@@ -76,7 +90,7 @@ def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List
         raise ValueError("names 与 bbas 长度不一致")
 
     # 动态分簇，返回 MultiClusters 对象
-    mc = construct_clusters_by_sequence(bbas, debug=False)
+    mc = construct_clusters_by_sequence(bbas, debug=False, lambda_val=lambda_val, mu_val=mu_val, )
     clusters = list(mc._clusters.values())
 
     # 簇间平均 RD_CCJS 距离
@@ -104,7 +118,10 @@ def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List
         for b in names_bbas:
             d_ij = intra.get(b.name, 0.0)
             # 合并加权支持度 Sup_{i,j}
-            sup = (n_i ** ALPHA) * math.exp(-LAMBDA * d_ij) * math.exp(-MU * D_i)
+            # 老版本公式，对于超参较为温和
+            # Sup_{i,j}=n_i^{\alpha}\,exp\bigl(-d_{i,j}^{\lambda}\bigr)\,exp\bigl(-D_i^{\mu}\bigr)
+            # 新版本公式，对于超参反应非常强烈
+            sup = (n_i ** ALPHA) * math.exp(-pow(d_ij, lambda_val)) * math.exp(-pow(D_i, mu_val))
             Sup[b.name] = sup
 
     # 归一化 支持度 Sup_{i,j} 得到 Crd_{i,j}
@@ -118,9 +135,16 @@ def credibility_degrees(bbas: List[BBA], names: List[str] | None = None) -> List
 # Step 2 — 加权平均 BBA
 # ---------------------------------------------------------------------------
 
-def _weighted_average_bba(bbas: List[BBA], names: List[str] | None = None) -> BBA:
+def _weighted_average_bba(bbas: List[BBA], names: List[str] | None = None, *, lambda_val: float | None = None,
+                          mu_val: float | None = None, ) -> BBA:
     """根据权重计算加权平均 BBA。"""
-    weights = np.array(credibility_degrees(bbas, names))
+    if lambda_val is None:
+        lambda_val = LAMBDA
+    if mu_val is None:
+        mu_val = MU
+    weights = np.array(
+        credibility_degrees(bbas, names, lambda_val=lambda_val, mu_val=mu_val)
+    )
     # 合并所有信念框架，确保每条 BBA 都能在同一 Θ 下表示
     frame = reduce(BBA.union, (b.frame for b in bbas), frozenset())
     proto = BBA({}, frame=frame)
@@ -134,8 +158,25 @@ def _weighted_average_bba(bbas: List[BBA], names: List[str] | None = None) -> BB
 # Step 3 — 主接口
 # ---------------------------------------------------------------------------
 
-def my_combine(bbas: List[BBA], names: List[str] | None = None) -> BBA:
-    """多传感器融合主流程。"""
+def my_combine(bbas: List[BBA], names: List[str] | None = None, *, lambda_val: float | None = None,
+               mu_val: float | None = None, ) -> BBA:
+    """多传感器融合主流程。
+
+    Parameters
+    ----------
+    bbas : List[BBA]
+        待融合的 BBA 列表。
+    names : List[str] | None, optional
+        与 ``bbas`` 对应的名称列表。
+    lambda_val : float, optional
+        ``\\lambda`` 超参，控制簇内散度的权重。
+    mu_val : float, optional
+        ``\\mu`` 超参，控制簇间散度的权重。
+    """
+    if lambda_val is None:
+        lambda_val = LAMBDA
+    if mu_val is None:
+        mu_val = MU
     if not bbas:
         raise ValueError("BBA 列表为空。")
 
@@ -143,7 +184,7 @@ def my_combine(bbas: List[BBA], names: List[str] | None = None) -> BBA:
         return bbas[0]
 
     # Step 1 & 2: 计算权重并求加权平均证据
-    avg = _weighted_average_bba(bbas, names)
+    avg = _weighted_average_bba(bbas, names, lambda_val=lambda_val, mu_val=mu_val, )
     # Step 3: 重复 DS 组合 (n-1) 次
     copies = [avg] * len(bbas)
     return combine_multiple(copies)

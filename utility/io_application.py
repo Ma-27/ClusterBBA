@@ -23,11 +23,12 @@ from utility.bba import BBA
 # 默认路径名称
 CSV_PATH = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_iris.csv"
 
-__all__ = ["load_application_dataset"]
+__all__ = ["load_application_dataset", "load_application_dataset_cv"]
 
 
 def load_application_dataset(csv_path: str | Path = CSV_PATH, *, debug: bool = True,
-                             debug_samples: int = 2
+                             debug_samples: int = 2,
+                             show_progress: bool = True
                              ) -> List[Tuple[int, List[BBA], str]]:
     """读取并解析应用数据集.
 
@@ -72,13 +73,16 @@ def load_application_dataset(csv_path: str | Path = CSV_PATH, *, debug: bool = T
     total = df["sample_index"].nunique()
     if debug:
         total = min(total, debug_samples)
-    # 用 tqdm 展示读取进度，防止加载过程无响应
-    group_iter = tqdm(
-        df.groupby("sample_index"),
-        desc="读取数据",
-        total=total,
-        ncols=PROGRESS_NCOLS,
-    )
+    # 根据需要显示读取进度条
+    iterable = df.groupby("sample_index")
+    if show_progress:
+        iterable = tqdm(
+            iterable,
+            desc="读取数据",
+            total=total,
+            ncols=PROGRESS_NCOLS,
+        )
+    group_iter = iterable
     for idx, group in group_iter:
         bbas: List[BBA] = []
         # 每行对应一个属性的 BBA
@@ -92,6 +96,66 @@ def load_application_dataset(csv_path: str | Path = CSV_PATH, *, debug: bool = T
         samples.append((int(idx), bbas, gt))
         if debug and len(samples) >= debug_samples:
             # 调试模式下仅保留前若干个样本
+            break
+
+    return samples
+
+
+def load_application_dataset_cv(csv_path: str | Path = CSV_PATH, *, debug: bool = True,
+                                debug_samples: int = 2,
+                                show_progress: bool = True,
+                                ) -> List[Tuple[int, List[BBA], str, int]]:
+    """读取并解析包含 ``fold`` 列的应用数据集.
+
+    与 :func:`load_application_dataset` 类似, 但额外返回每个样本所在的 ``fold`` 序号,
+    便于在交叉验证场景下分折评估。
+    """
+    csv_path = Path(csv_path)
+    if not csv_path.is_file():
+        raise FileNotFoundError(f"找不到数据文件: {csv_path}")
+
+    df = pd.read_csv(csv_path)
+    if "fold" not in df.columns:
+        raise ValueError("CSV 文件缺失 fold 列, 无法执行交叉验证")
+
+    meta_cols = [
+        "sample_index",
+        "ground_truth",
+        "dataset_split",
+        "fold",
+        "attribute",
+        "attribute_data",
+    ]
+    bba_cols = [c for c in df.columns if c not in meta_cols]
+
+    frame = set()
+    for col in bba_cols:
+        frame.update(BBA.parse_focal_set(col))
+
+    samples: List[Tuple[int, List[BBA], str, int]] = []
+    total = df["sample_index"].nunique()
+    if debug:
+        total = min(total, debug_samples)
+
+    iterable = df.groupby("sample_index")
+    if show_progress:
+        iterable = tqdm(
+            iterable,
+            desc="读取数据",
+            total=total,
+            ncols=PROGRESS_NCOLS,
+        )
+    group_iter = iterable
+    for idx, group in group_iter:
+        bbas: List[BBA] = []
+        for _, row in group.iterrows():
+            mass = {BBA.parse_focal_set(col): float(row[col]) for col in bba_cols}
+            name = f"m_{row['attribute']}"
+            bbas.append(BBA(mass, frame=frame, name=name))
+        gt = str(group.iloc[0]["ground_truth"])
+        fold = int(group.iloc[0]["fold"])
+        samples.append((int(idx), bbas, gt, fold))
+        if debug and len(samples) >= debug_samples:
             break
 
     return samples

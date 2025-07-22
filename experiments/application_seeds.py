@@ -65,7 +65,7 @@ def run_classification(samples: List[tuple[int, List, str]],
         fused = combine_func(bbas)
         # 2. 对融合后的 BBA 进行 Pignistic 转换得到概率分布
         prob = pignistic(fused)
-        # 3. 取概率最大的焦元作为预测结果
+        # 3. 取概率最大的焦元作为预测类别
         fs, _ = argmax(prob)
         pred_short = next(iter(fs)) if fs else ""
         # 转换为完整标签，防止缩写难以阅读

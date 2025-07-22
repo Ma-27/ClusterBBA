@@ -51,21 +51,25 @@ METHODS = {
 }
 
 
-def run_classification(samples: List[tuple[int, List, str]],
-                       combine_func: Callable[[List[BBA]], BBA],
-                       method_name: str) -> None:
+def collect_predictions(samples: List[tuple[int, List[BBA], str]], combine_func: Callable[[List[BBA]], BBA], *,
+                        show_progress: bool = True, ) -> tuple[List[str], List[str]]:
+    """根据给定融合函数生成预测结果列表."""
+
     y_true: List[str] = []
     y_pred: List[str] = []
 
+    iterable = samples
     # tqdm 用于显示当前评估进度，PROGRESS_NCOLS 来源于全局配置
-    pbar = tqdm(samples, desc="评估进度", ncols=PROGRESS_NCOLS)
-    for _, bbas, gt in pbar:
+    if show_progress:
+        iterable = tqdm(samples, desc="评估进度", ncols=PROGRESS_NCOLS)
+
+    for _, bbas, gt in iterable:
         # ---------- 预测流程 ---------- #
         # 1. 多条 BBA 先经指定规则融合
         fused = combine_func(bbas)
         # 2. 对融合后的 BBA 进行 Pignistic 转换得到概率分布
         prob = pignistic(fused)
-        # 3. 取概率最大的焦元作为预测结果
+        # 3. 取概率最大的焦元作为预测类别
         fs, _ = argmax(prob)
         pred_short = next(iter(fs)) if fs else ""
         # 转换为完整标签，防止缩写难以阅读
@@ -74,6 +78,14 @@ def run_classification(samples: List[tuple[int, List, str]],
         # 记录真实标签与预测标签，供后续计算评估指标
         y_true.append(gt)
         y_pred.append(pred_full)
+
+    return y_true, y_pred
+
+
+def run_classification(samples: List[tuple[int, List, str]], combine_func: Callable[[List[BBA]], BBA],
+                       method_name: str) -> None:
+    # 调用统一的预测函数获取标签
+    y_true, y_pred = collect_predictions(samples, combine_func, show_progress=True)
 
     # ------------------------------ 评估指标 ------------------------------ #
     # 计算整体准确率与宏观 F1 分数
@@ -97,6 +109,35 @@ def run_classification(samples: List[tuple[int, List, str]],
     print("\nConfusion Matrix:")
     # 行列均为目标类别，直观展示预测错配情况
     print(pd.DataFrame(cm, index=labels, columns=labels).to_string())
+
+
+def evaluate_accuracy(*, debug: bool = False, show_progress: bool = False, csv_path: str | Path | None = None,
+                      combine_func: Callable[[List[BBA]], BBA] = my_combine,
+                      data_progress: bool = True, ) -> float:
+    """计算在 Iris 数据集上的分类准确率."""
+
+    if csv_path is None:
+        csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_iris.csv"
+
+    samples = load_application_dataset(debug=debug, csv_path=csv_path, show_progress=data_progress)
+
+    y_true: List[str] = []
+    y_pred: List[str] = []
+
+    iterable = samples
+    if show_progress:
+        iterable = tqdm(samples, desc="评估进度", ncols=PROGRESS_NCOLS)
+
+    for _, bbas, gt in iterable:
+        fused = combine_func(bbas)
+        prob = pignistic(fused)
+        fs, _ = argmax(prob)
+        pred_short = next(iter(fs)) if fs else ""
+        pred_full = LABEL_MAP.get(pred_short, pred_short)
+        y_true.append(gt)
+        y_pred.append(pred_full)
+
+    return float(accuracy_score(y_true, y_pred))
 
 
 if __name__ == "__main__":

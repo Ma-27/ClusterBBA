@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """Example 3.7 随机顺序分簇评估
 ===============================
-随机打乱 ``Example_3_7.csv`` 中 BBA 的加入顺序，
-使用 :func:`construct_clusters_by_sequence` 对 BBA 进行在线贪心分簇，
-并与文档给出的三簇真值对比，计算分类指标。
+随机打乱 ``Example_3_7.csv`` 中 BBA 的加入顺序，使用 :func:`construct_clusters_by_sequence` 对 BBA 进行在线贪心分簇，并与三簇真值对比，计算分类指标。
 """
 
 from __future__ import annotations
@@ -66,6 +64,66 @@ def evaluate_once(order: List[BBA], truth: List[set[str]]) -> tuple[bool, List[i
     sizes = [len(clus.get_bbas()) for clus in clusters]
     correct = {frozenset(s) for s in pred} == {frozenset(s) for s in truth}
     return correct, sizes
+
+
+def evaluate_accuracy(shuffle_times: int = SHUFFLE_TIMES) -> float:
+    """重复打乱顺序评估分簇准确率"""
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(base_dir, "..", "data", "examples", "Example_3_7.csv")
+    bbas = load_example_bbas(csv_path)
+    truth_clusters = get_ground_truth_clusters()
+
+    correct_count = 0
+    for _ in range(shuffle_times):
+        order = bbas.copy()
+        random.shuffle(order)
+        correct, _ = evaluate_once(order, truth_clusters)
+        if correct:
+            correct_count += 1
+    return correct_count / shuffle_times
+
+
+def evaluate_accuracy(
+        shuffle_times: int = SHUFFLE_TIMES,
+        *,
+        show_progress: bool = False,
+        position: int = 0,
+) -> float:
+    """重复打乱顺序评估分簇准确率
+
+    参数
+    ----
+    shuffle_times: 重复打乱评估的次数
+    show_progress: 是否使用 tqdm 展示评估进度
+    position: tqdm 进度条位置，便于与外部进度条配合
+    """
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(base_dir, "..", "data", "examples", "Example_3_7.csv")
+    bbas = load_example_bbas(csv_path)
+    truth_clusters = get_ground_truth_clusters()
+
+    correct_count = 0
+    iterable = range(shuffle_times)
+    if show_progress:
+        iterable = tqdm(
+            iterable,
+            desc="评估进度",
+            ncols=PROGRESS_NCOLS,
+            position=position,
+            leave=False,
+            dynamic_ncols=True,
+        )
+    for _ in iterable:
+        order = bbas.copy()
+        # 随机打乱 BBA 插入顺序
+        random.shuffle(order)
+        # 单次评估
+        correct, _ = evaluate_once(order, truth_clusters)
+        if correct:
+            correct_count += 1
+    return correct_count / shuffle_times
 
 
 if __name__ == "__main__":  # pragma: no cover

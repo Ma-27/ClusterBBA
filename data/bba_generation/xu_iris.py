@@ -171,8 +171,7 @@ def generate_bba_dataframe(
      '{Vi ∪ Ve}', '{Vi ∪ Se}', '{Ve ∪ Se}', '{Vi ∪ Ve ∪ Se}']
     所有数值均保留四位小数。
 
-    参数 ``sample_indices`` 可提供与 ``train_dataset``、``test_dataset`` 顺序
-    对应的原始数据集索引列表，用于在输出中恢复行号（从 1 开始）。
+    参数 ``sample_indices`` 可提供与 ``train_dataset``、``test_dataset`` 顺序对应的原始数据集索引列表，用于在输出中恢复行号（从 1 开始）。
     参数 ``offsets`` 若提供，则视为在构建数据集时对所有特征施加的平移量，
     ``attribute_data`` 会自动减去对应偏移以恢复原始取值。
     """
