@@ -158,7 +158,7 @@ def generate_subset_names(class_names: list) -> list:
     n = len(class_names)
     for r in range(1, n + 1):
         for combo in combinations(class_names, r):
-            name = "{" + " ∪ ".join(sorted(combo)) + "}"
+            name = "{" + " ∪ ".join(combo) + "}"
             subsets.append(name)
     return subsets
 
@@ -229,15 +229,15 @@ def generate_bba_dataframe(
                 cls_subset = [class_names[idx] for idx in np.sort(order[: r + 1])]
                 name = "{" + " ∪ ".join(cls_subset) + "}"
                 mass_dict[name] = float(masses[r])
-            attr_rec = x_vec[j]
-            if offsets is not None:
-                attr_rec -= offsets[j]
+            # 使用原始数据恢复属性值，避免因平移与四舍五入产生误差
+            attr_rec = float(X_all[ds_idx, j])
             row = {
                 "sample_index": ds_idx + 1,
                 "ground_truth": gt,
                 "dataset_split": split,
                 "attribute": attr_names[j],
-                "attribute_data": round(float(attr_rec), decimals),
+                # 保留更多有效数字，确保与原始数据完全一致
+                "attribute_data": round(attr_rec, max(decimals, 5)),
             }
             for name in subset_names:
                 row[name] = round(mass_dict[name], decimals)
@@ -261,7 +261,8 @@ def preview_sample(df_out: pd.DataFrame, attr_names: list, num_samples: int = NU
         df_group["attr_order"] = df_group["attribute"].map(attr_order)
         df_group = df_group.sort_values(by=["sample_index", "attr_order"])
         df_group = df_group.drop(columns=["attr_order"])
-        print(df_group.to_string(index=False))
+        # 以 Markdown 表格形式输出，便于在支持 Markdown 的环境中查看
+        print(df_group.to_markdown(index=False))
 
 
 def fit_parameters(

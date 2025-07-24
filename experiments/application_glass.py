@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Iris 数据集上的证据融合分类实验
+"""Glass 数据集上的证据融合分类实验
 =================================
 
-使用 :func:`utility.io_application.load_application_dataset` 读取``kfold_xu_bba_iris.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
+使用 :func:`utility.io_application.load_application_dataset` 读取``xu_bba_glass.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
 """
 
 from __future__ import annotations
@@ -37,7 +37,14 @@ from utility.io_application import load_application_dataset
 from utility.probability import pignistic, argmax
 from utility.bba import BBA
 
-LABEL_MAP = {"Se": "Setosa", "Ve": "Versicolor", "Vi": "Virginica"}
+LABEL_MAP = {
+    "Bf": "building_windows_float_processed",
+    "Bn": "building_windows_non_float_processed",
+    "Vf": "vehicle_windows_float_processed",
+    "Co": "containers",
+    "Ta": "tableware",
+    "He": "headlamps",
+}
 
 # 可选融合规则及其对应的实现函数
 METHODS = {
@@ -71,6 +78,7 @@ def collect_predictions(samples: List[tuple[int, List[BBA], str]], combine_func:
         except ValueError as e:
             if warn:
                 print(f"样本 {idx} DS 组合失败: {e}")
+            # 组合失败时直接视为预测错误, 随机指定一个非真实标签
             wrong_label = next(l for l in LABEL_MAP.values() if l != gt)
             y_true.append(gt)
             y_pred.append(wrong_label)
@@ -90,8 +98,8 @@ def collect_predictions(samples: List[tuple[int, List[BBA], str]], combine_func:
     return y_true, y_pred
 
 
-def run_classification(samples: List[tuple[int, List, str]], combine_func: Callable[[List[BBA]], BBA], method_name: str,
-                       *, warn: bool = True) -> None:
+def run_classification(samples: List[tuple[int, List[BBA], str]], combine_func: Callable[[List[BBA]], BBA],
+                       method_name: str, *, warn: bool = True) -> None:
     # 调用统一的预测函数获取标签
     y_true, y_pred = collect_predictions(samples, combine_func, show_progress=True, warn=warn)
 
@@ -123,7 +131,7 @@ def evaluate_accuracy(*, samples: List[tuple[int, List[BBA], str]] | None = None
                       show_progress: bool = False, csv_path: str | Path | None = None,
                       combine_func: Callable[[List[BBA]], BBA] = my_combine, data_progress: bool = True,
                       warn: bool = False) -> float:
-    """计算在 Iris 数据集上的分类准确率.
+    """计算在 Glass 数据集上的分类准确率.
 
     Parameters
     ----------
@@ -134,7 +142,7 @@ def evaluate_accuracy(*, samples: List[tuple[int, List[BBA], str]] | None = None
 
     if samples is None:
         if csv_path is None:
-            csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_iris.csv"
+            csv_path = Path(__file__).resolve().parents[1] / "data" / "xu_bba_glass.csv"
         samples = load_application_dataset(debug=debug, csv_path=csv_path, show_progress=data_progress)
 
     # 调用统一的评价函数获取标签
@@ -145,9 +153,9 @@ def evaluate_accuracy(*, samples: List[tuple[int, List[BBA], str]] | None = None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="在 Iris 数据集上进行证据融合分类")
+        description="在 Glass 数据集上进行证据融合分类")
     parser.add_argument("--full", action="store_true",
-                        help="评估全部 150 条样本")
+                        help="评估全部 214 条样本")
 
     # fixme 指定融合规则：从 METHODS 字典中取出对应的函数和名称
     parser.add_argument(
@@ -165,7 +173,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # 若指定 alpha, 则覆盖 config.py 中的默认值
     if args.alpha is not None:
         config.ALPHA = args.alpha
         try:
@@ -180,7 +187,7 @@ if __name__ == "__main__":
     debug = args.full
 
     # fixme CSV 文件路径，根据实验灵活修改
-    csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_iris.csv"
+    csv_path = Path(__file__).resolve().parents[1] / "data" / "xu_bba_glass.csv"
 
     method_name = args.method
     combine_func = METHODS[method_name]

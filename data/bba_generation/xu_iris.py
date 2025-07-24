@@ -279,7 +279,8 @@ def preview_sample(df_out: pd.DataFrame, attr_names: list, num_samples: int = 8,
         df_group['attr_order'] = df_group['attribute'].map(attr_order)
         df_group = df_group.sort_values(by=['sample_index', 'attr_order'])
         df_group = df_group.drop(columns=['attr_order'])
-        print(df_group.to_string(index=False))
+        # 以 Markdown 表格形式输出，便于在支持 Markdown 的环境中查看
+        print(df_group.to_markdown(index=False))
 
 
 def fit_parameters(

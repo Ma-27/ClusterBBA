@@ -11,6 +11,7 @@ import argparse
 import itertools
 import os
 import sys
+from functools import cmp_to_key
 from typing import Iterable, Tuple, List
 
 from tqdm import tqdm
@@ -62,12 +63,23 @@ def search(params: Iterable[Tuple[float, float]]) -> List[Tuple[float, float, fl
         acc = evaluate_accuracy(show_progress=False, debug=False, data_progress=False)
 
         # 在进度条上显示当前结果
-        pbar.set_postfix({"lambda": lam, "mu": mu, "acc": f"{acc:.3f}"})
+        pbar.set_postfix({"lambda": lam, "mu": mu, "acc": f"{acc:.6f}"})
 
         results.append((lam, mu, acc))
 
-    # 按准确率降序排列
-    results.sort(key=lambda x: x[2], reverse=True)
+    # 按准确率降序排列，若准确率相同则选择更接近 1 的结果
+    def _cmp(a: Tuple[float, float, float], b: Tuple[float, float, float]) -> int:
+        if abs(a[2] - b[2]) <= 1e-6:
+            diff_a = abs(a[2] - 1.0)
+            diff_b = abs(b[2] - 1.0)
+            if diff_a < diff_b:
+                return -1
+            if diff_a > diff_b:
+                return 1
+            return 0
+        return -1 if a[2] > b[2] else 1
+
+    results.sort(key=cmp_to_key(_cmp))
     return results
 
 
@@ -78,18 +90,12 @@ if __name__ == "__main__":  # pragma: no cover
 
     # 候选的 lambda 和 mu 值，将会被展开组合为 (lambda, mu) 的形式进行遍历
     candidates = [
-        0.005, 0.0075, 0.008, 0.01, 0.012, 0.015, 0.018, 0.02, 0.025, 0.027,
-        0.0333, 0.04, 0.045, 0.05, 0.0667, 0.075, 0.0833, 0.1, 0.1111, 0.125,
-        0.1428, 0.1666, 0.2, 0.25, 0.3, 0.3333, 0.4, 0.45, 0.5, 0.55,
-        0.6, 0.62, 0.7, 0.75, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3,
-        1.4, 1.5, 1.6, 1.7, 1.8, 2.0, 2.2, 2.3, 2.5, 2.7,
-        2.8, 3.0, 3.2, 3.5, 3.8, 4.0, 4.5, 4.8, 5.0, 5.5,
-        6.0, 6.5, 6.8, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0,
-        11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0, 20.0, 22.0, 25.0,
-        28.0, 30.0, 35.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0
+        0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3333, 0.4,
+        0.5, 0.6, 0.8, 1.0, 1.25, 1.6667, 2.0, 2.5, 3.0, 5.0,
+        10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0
     ]
 
-    # len(candidates) = 90  -> 90**2 = 8100 pairs
+    # len(candidates) = 27  -> 27**2 = 729 pairs
     pairs = list(itertools.product(candidates, candidates))
 
     if args.debug:
@@ -101,4 +107,4 @@ if __name__ == "__main__":  # pragma: no cover
     print("\nBest Params:")
     # 输出前 ``len(candidates)`` 组最优超参
     for idx, (lam, mu, acc) in enumerate(results[:top_k], start=1):
-        print(f"best {idx}: lambda={lam}, mu={mu}, acc={acc:.3f}")
+        print(f"best {idx}: lambda={lam}, mu={mu}, acc={acc:.6f}")

@@ -10,6 +10,8 @@ from __future__ import annotations
 import random
 from typing import Dict, List, Optional, Tuple
 
+import numpy as np
+
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
 from config import (
@@ -197,12 +199,29 @@ class MultiClusters:
         avg_d_intra = sum(d_intras) / K_k
 
         # 防止除以0，为了数值稳定性
-        if avg_d_intra <= 0:
+        if avg_d_intra <= INTRA_EPS:
+            # 若 ``avg_d_intra`` 极小, 在大 \lambda 情形下可能因浮点下溢导致 0 除,因此将其下界限制为 ``INTRA_EPS``.
             avg_d_intra = INTRA_EPS
 
         # 计算收益，注意，\mu 与 \lambda 是可调的，但是如果不传参就是默认值。
-        reward = (avg_rd_cc ** mu_val) / (avg_d_intra ** lambda_val)
-        return reward
+        # 直接在普通浮点下计算可能出现下溢或溢出，这里使用 ``numpy`` 的 ``longdouble``提供更大的浮点范围。
+
+        base_rd_cc = np.longdouble(max(avg_rd_cc, INTRA_EPS))
+        base_d_intra = np.longdouble(max(avg_d_intra, INTRA_EPS))
+
+        numerator = np.power(base_rd_cc, np.longdouble(mu_val))
+        denominator = np.power(base_d_intra, np.longdouble(lambda_val))
+
+        if denominator == 0.0:
+            return float("inf")
+
+        reward_ld = numerator / denominator
+        info = np.finfo(np.longdouble)
+        if reward_ld > info.max:
+            return float("inf")
+        if reward_ld < info.tiny:
+            return 0.0
+        return float(reward_ld)
 
     # ------------------------------------------------------------------
     # 选簇与入簇

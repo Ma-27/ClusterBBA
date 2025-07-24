@@ -52,7 +52,7 @@ METHODS = {
 
 
 def collect_predictions(samples: List[tuple[int, List[BBA], str]], combine_func: Callable[[List[BBA]], BBA], *,
-                        show_progress: bool = True) -> tuple[List[str], List[str]]:
+                        show_progress: bool = True, warn: bool = False) -> tuple[List[str], List[str]]:
     """根据给定融合函数生成预测结果列表."""
 
     y_true: List[str] = []
@@ -63,10 +63,18 @@ def collect_predictions(samples: List[tuple[int, List[BBA], str]], combine_func:
     if show_progress:
         iterable = tqdm(samples, desc="评估进度", ncols=PROGRESS_NCOLS)
 
-    for _, bbas, gt in iterable:
+    for idx, bbas, gt in iterable:
         # ---------- 预测流程 ---------- #
         # 1. 多条 BBA 先经指定规则融合
-        fused = combine_func(bbas)
+        try:
+            fused = combine_func(bbas)
+        except ValueError as e:
+            if warn:
+                print(f"样本 {idx} DS 组合失败: {e}")
+            wrong_label = next(l for l in LABEL_MAP.values() if l != gt)
+            y_true.append(gt)
+            y_pred.append(wrong_label)
+            continue
         # 2. 对融合后的 BBA 进行 Pignistic 转换得到概率分布
         prob = pignistic(fused)
         # 3. 取概率最大的焦元作为预测类别
@@ -83,10 +91,10 @@ def collect_predictions(samples: List[tuple[int, List[BBA], str]], combine_func:
 
 
 def run_classification(samples: List[tuple[int, List[BBA], str]], combine_func: Callable[[List[BBA]], BBA],
-                       method_name: str) -> None:
+                       method_name: str, *, warn: bool = True) -> None:
     # ------------------------------ 评估指标 ------------------------------ #
     # 计算整体准确率与宏观 F1 分数
-    y_true, y_pred = collect_predictions(samples, combine_func, show_progress=True)
+    y_true, y_pred = collect_predictions(samples, combine_func, show_progress=True, warn=warn)
 
     acc = accuracy_score(y_true, y_pred)
     f1_macro = f1_score(y_true, y_pred, average="macro")
@@ -110,30 +118,26 @@ def run_classification(samples: List[tuple[int, List[BBA], str]], combine_func: 
     print(pd.DataFrame(cm, index=labels, columns=labels).to_string())
 
 
-def evaluate_accuracy(*, debug: bool = False, show_progress: bool = False, csv_path: str | Path | None = None,
-                      combine_func: Callable[[List[BBA]], BBA] = my_combine, data_progress: bool = True) -> float:
-    """计算在 Wine 数据集上的分类准确率."""
+def evaluate_accuracy(*, samples: List[tuple[int, List[BBA], str]] | None = None, debug: bool = False,
+                      show_progress: bool = False, csv_path: str | Path | None = None,
+                      combine_func: Callable[[List[BBA]], BBA] = my_combine, data_progress: bool = True,
+                      warn: bool = False) -> float:
+    """计算在 Wine 数据集上的分类准确率.
 
-    if csv_path is None:
-        csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_wine.csv"
+    Parameters
+    ----------
+    samples : list of tuple, optional
+        预载入的样本列表 ``[(idx, [BBA, ...], ground_truth), ...]``。
+        若提供，则直接使用该数据而无需再次从 ``csv_path`` 读取。
+    """
 
-    samples = load_application_dataset(debug=debug, csv_path=csv_path, show_progress=data_progress)
+    if samples is None:
+        if csv_path is None:
+            csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_wine.csv"
+        samples = load_application_dataset(debug=debug, csv_path=csv_path, show_progress=data_progress)
 
-    y_true: List[str] = []
-    y_pred: List[str] = []
-
-    iterable = samples
-    if show_progress:
-        iterable = tqdm(samples, desc="评估进度", ncols=PROGRESS_NCOLS)
-
-    for _, bbas, gt in iterable:
-        fused = combine_func(bbas)
-        prob = pignistic(fused)
-        fs, _ = argmax(prob)
-        pred_short = next(iter(fs)) if fs else ""
-        pred_full = LABEL_MAP.get(pred_short, pred_short)
-        y_true.append(gt)
-        y_pred.append(pred_full)
+    # 调用统一的评价函数获取标签
+    y_true, y_pred = collect_predictions(samples, combine_func, show_progress=show_progress, warn=warn)
 
     return float(accuracy_score(y_true, y_pred))
 
@@ -183,4 +187,4 @@ if __name__ == "__main__":
     samples = load_application_dataset(debug=debug, csv_path=csv_path)
     # 进行分类任务评估
     combine_func = METHODS[args.method]
-    run_classification(samples, combine_func, args.method)
+    run_classification(samples, combine_func, args.method, warn=True)

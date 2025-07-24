@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""test_xu_iris.py
+"""test_xu_dry_bean.py
 
-验证生成的 ``Iris`` BBA 与原始数据的一致性。
+验证 ``xu_dry_bean.py`` 与 ``kfold_xu_dry_bean.py`` 生成的 CSV 是否与原始 ``Dry Bean`` 数据集一致。
 
-本文件同时测试 ``xu_iris.py`` 与 ``kfold_xu_iris.py`` 生成的 CSV：
+本文件同时测试两份 CSV：
 
 1. 所有样本是否完整且无重复；
 2. 每行 BBA 质量是否归一化；
 3. ``kfold`` 版本的 ``sample_index`` 是否与原始数据索引一致；
-4. 给定特征组合 ``(5.0, 3.6, 1.4, 0.2)`` 在两个 CSV 中对应的 ``sample_index``。
+4. 给定特征组合 ``(28395.0, 610.2909999999998, 208.17811670852728, ...)`` 在两个 CSV 中对应的 ``sample_index``。
 """
 
 from __future__ import annotations
@@ -25,16 +25,19 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 # 依赖本项目内现成工具函数 / 模块
-from data.bba_generation.kfold_xu_iris import (
+from data.bba_generation.kfold_xu_dry_bean import (
     CSV_PATH as KFOLD_CSV_PATH,
-    load_iris_data,
+    load_dry_bean_data,
 )
-from data.bba_generation.xu_iris import CSV_PATH as BASIC_CSV_PATH
+from data.bba_generation.xu_dry_bean import (
+    CSV_PATH as BASIC_CSV_PATH,
+    generate_subset_names,
+)
 import numpy as np
 
 
 def _print_md_sample(df: pd.DataFrame, n: int = 5) -> None:
-    """以 Markdown 表格格式打印给定 ``DataFrame`` 前 ``n`` 行样例。"""
+    """以 Markdown 表格格式打印 ``DataFrame`` 样例。"""
 
     print(df.head(n).to_markdown(index=False))
 
@@ -43,11 +46,11 @@ def test_index_mapping() -> None:
     """检查 ``kfold`` CSV 的 ``sample_index`` 映射。"""
     print("开始测试 sample_index 映射……")
     if not KFOLD_CSV_PATH.exists():
-        subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_iris"], check=True)
+        subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_dry_bean"], check=True)
     df = pd.read_csv(KFOLD_CSV_PATH)
     # 有些环境可能将 ``sample_index`` 解析为浮点数，这里统一转为 ``int``
     df["sample_index"] = df["sample_index"].astype(int)
-    X_all, _, attr_names, _, _ = load_iris_data()
+    X_all, _, attr_names, _, _ = load_dry_bean_data()
     n_attr = len(attr_names)
     ok = True
 
@@ -74,8 +77,8 @@ def test_index_mapping() -> None:
 
 
 def _load_dataset() -> pd.DataFrame:
-    """读取原始 Iris 数据集并返回带标签的 ``DataFrame``。"""
-    X_all, y_all, attr_names, _, full_class_names = load_iris_data()
+    """读取原始 Dry Bean 数据集并返回带标签的 ``DataFrame``。"""
+    X_all, y_all, attr_names, _, full_class_names = load_dry_bean_data()
     df = pd.DataFrame(X_all, columns=attr_names)
     df["ground_truth"] = [full_class_names[i] for i in y_all]
     # 与生成的 CSV 保持一致, 将索引调整为从 1 开始
@@ -87,7 +90,7 @@ def _parse_bba(df: pd.DataFrame, attr_names: list[str]) -> dict[int, tuple[float
     """按 ``sample_index`` 重组特征向量。"""
     features: dict[int, tuple[float, ...]] = {}
     for idx, grp in df.groupby("sample_index"):
-        # ``grp`` 含 4 行属性，按 ``attr_names`` 排序还原为原始特征向量
+        # ``grp`` 含 16 行属性，按 ``attr_names`` 排序还原为原始特征向量
         values = (
             grp.set_index("attribute")
             .loc[attr_names]["attribute_data"]
@@ -144,15 +147,9 @@ def _check_decimal_places(csv_path: Path, columns: list[str], decimals: int = 4)
 def _check_bba_values(df: pd.DataFrame, csv_name: str) -> list[str]:
     """检查 BBA 数值是否非负且严格归一化。"""
     errors: list[str] = []
-    mass_cols = [
-        "{Vi}",
-        "{Ve}",
-        "{Se}",
-        "{Vi ∪ Ve}",
-        "{Vi ∪ Se}",
-        "{Ve ∪ Se}",
-        "{Vi ∪ Ve ∪ Se}",
-    ]
+    mass_cols = generate_subset_names([
+        "Se", "Ba", "Bo", "Ca", "Ho", "Si", "De",
+    ])
     neg_rows = df.index[(df[mass_cols] < 0).any(axis=1)]
     if not neg_rows.empty:
         errors.append(f"{csv_name}: 存在负的 BBA 质量值于行 {neg_rows.tolist()}")
@@ -180,7 +177,7 @@ def _check_kfold_alignment(
 ) -> list[str]:
     """检查 ``kfold`` 版本是否与原始数据按索引完全对应。"""
     errors: list[str] = []
-    # 将 ``sample_index`` 下的 4 行属性重组成特征向量，便于比对
+    # 将 ``sample_index`` 下的 16 行属性重组成特征向量，便于比对
     features = _parse_bba(df, attr_names)
     for idx, row in dataset_df.iterrows():
         if idx not in features:
@@ -218,25 +215,35 @@ def _check_basic_alignment(
     dataset_features = [
         tuple(float(row[attr]) for attr in attr_names) for _, row in dataset_df.iterrows()
     ]
-    if sorted(csv_features) != sorted(dataset_features):
-        diff_csv = [f for f in csv_features if f not in dataset_features][:5]
-        diff_ds = [f for f in dataset_features if f not in csv_features][:5]
+
+    def _round_feat(feat: tuple[float, ...]) -> tuple[float, ...]:
+        """统一四位小数，避免浮点微小差异导致误判。"""
+
+        return tuple(round(float(v), 4) for v in feat)
+
+    round_csv = [_round_feat(f) for f in csv_features]
+    round_dataset = [_round_feat(f) for f in dataset_features]
+
+    if sorted(round_csv) != sorted(round_dataset):
+        diff_csv = [csv_features[i] for i, f in enumerate(round_csv) if f not in round_dataset][:5]
+        diff_ds = [dataset_features[i] for i, f in enumerate(round_dataset) if f not in round_csv][:5]
         errors.append(
             f"普通 CSV: 特征集合与原始数据不符，示例 csv 独有 {diff_csv}, dataset 独有 {diff_ds}"
         )
         print("特征集合差异示例:")
         _print_md_sample(pd.DataFrame(diff_csv, columns=attr_names))
+
     feature_to_label = {
-        # 使用特征向量作为键, 快速查询其真实标签
-        tuple(float(row[attr]) for attr in attr_names): row["ground_truth"]
+        _round_feat(tuple(float(row[attr]) for attr in attr_names)): row["ground_truth"]
         for _, row in dataset_df.iterrows()
     }
     for idx, grp in df.groupby("sample_index"):
         feat = tuple(
             grp.set_index("attribute").loc[attr_names]["attribute_data"].to_numpy(dtype=float)
         )
+        feat_key = _round_feat(feat)
         gt = grp["ground_truth"].iloc[0]
-        expect = feature_to_label.get(feat)
+        expect = feature_to_label.get(feat_key)
         if expect is None:
             errors.append(f"普通 CSV: 样本 {idx} 的特征未在原数据中找到")
             _print_md_sample(grp)
@@ -251,9 +258,9 @@ def test_data_consistency() -> None:
     """检查两份 CSV 是否与原始数据一致且无重复。"""
     print("开始测试 CSV 与原始数据的一致性……")
     if not BASIC_CSV_PATH.exists():
-        subprocess.run(["python", "-m", "data.bba_generation.xu_iris"], check=True)
+        subprocess.run(["python", "-m", "data.bba_generation.xu_dry_bean"], check=True)
     if not KFOLD_CSV_PATH.exists():
-        subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_iris"], check=True)
+        subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_dry_bean"], check=True)
 
     df_basic = pd.read_csv(BASIC_CSV_PATH)
     df_kfold = pd.read_csv(KFOLD_CSV_PATH)
@@ -262,7 +269,12 @@ def test_data_consistency() -> None:
     df_kfold["sample_index"] = df_kfold["sample_index"].astype(int)
 
     dataset_df = _load_dataset()
-    attr_names = ["SL", "SW", "PL", "PW"]
+    attr_names = [
+        "Area", "Perimeter", "MajorAxisLength", "MinorAxisLength", "AspectRation",
+        "Eccentricity", "ConvexArea", "EquivDiameter", "Extent", "Solidity",
+        "roundness", "Compactness", "ShapeFactor1", "ShapeFactor2",
+        "ShapeFactor3", "ShapeFactor4",
+    ]
 
     errors: list[str] = []
 
@@ -294,10 +306,9 @@ def test_data_consistency() -> None:
         print(" - 普通 CSV BBA 值检查通过")
     errors += errs
 
-    decimal_cols = [
-        "{Vi}", "{Ve}", "{Se}",
-        "{Vi ∪ Ve}", "{Vi ∪ Se}", "{Ve ∪ Se}", "{Vi ∪ Ve ∪ Se}",
-    ]
+    decimal_cols = generate_subset_names([
+        "Se", "Ba", "Bo", "Ca", "Ho", "Si", "De",
+    ])
     errs = _check_decimal_places(BASIC_CSV_PATH, decimal_cols)
     if errs:
         print(" - 普通 CSV 小数位检查失败")
@@ -345,7 +356,13 @@ def test_data_consistency() -> None:
     errors += errs
 
     # ---------- 查找特定特征组对应的 sample_index ----------
-    target = (5.0, 3.6, 1.4, 0.2)
+    target = (
+        28395.0, 610.2909999999998, 208.17811670852728, 173.88874704163598,
+        1.1971914241160242, 0.5498121871383472, 28715.0, 190.1410972745107,
+        0.7639225181598063, 0.9888559986069998, 0.9580271262501276,
+        0.9133577547957626, 0.0073315061351832, 0.0031472891673356,
+        0.8342223882455564, 0.9987238890131684,
+    )
 
     def find_index(df: pd.DataFrame) -> int:
         # 遍历所有样本, 找到与 ``target`` 完全匹配的特征向量
@@ -359,7 +376,7 @@ def test_data_consistency() -> None:
 
     idx_basic = find_index(df_basic)
     idx_kfold = find_index(df_kfold)
-    print("The (5.0, 3.6, 1.4, 0.2) vector index is:")
+    print("The target vector index is:")
     print("basic csv index:", idx_basic)
     print("kfold csv index:", idx_kfold)
     dataset_idx = int(

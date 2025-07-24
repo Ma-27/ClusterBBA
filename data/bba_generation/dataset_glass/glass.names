@@ -54,13 +54,13 @@
    9. Ba: Barium
   10. Fe: Iron
   11. Type of glass: (class attribute)
-      -- 1 building_windows_float_processed
-      -- 2 building_windows_non_float_processed
-      -- 3 vehicle_windows_float_processed
+      -- 1 building_windows_float_processed(Bf)
+      -- 2 building_windows_non_float_processed(Bn)
+      -- 3 vehicle_windows_float_processed(Vf)
       -- 4 vehicle_windows_non_float_processed (none in this database)
-      -- 5 containers
-      -- 6 tableware
-      -- 7 headlamps
+      -- 5 containers(Co)
+      -- 6 tableware(Ta)
+      -- 7 headlamps(He)
 
 8. Missing Attribute Values: None
 

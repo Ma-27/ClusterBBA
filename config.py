@@ -12,7 +12,7 @@ SCALE_EPSILON: float = 4e-3
 INTRA_EPS: float = 1e-6
 
 # 单簇单元判断阈值，本质是 BJS 阈值，用于处理单簇单元 (K=1, n1=1) 边界
-# TODO 此值可能严重影响初始划分结果
+# 此值可能会影响初始划分结果
 THRESHOLD_BJS: float = 0.5571
 
 # RD_CCJS 随机二分次数
@@ -21,7 +21,7 @@ SPLIT_TIMES: int = 5
 # 计算 BJS / D_CCJS 时避免取 log(0) 的极小常数
 EPS: float = 1e-12
 
-# 默认分形深度，todo 可根据实际情况修改
+# 默认分形深度，todo 仅在模块测试时启用，可根据实际情况修改
 SEG_DEPTH: int = 2
 
 # 实验中随机打乱顺序的重复次数

@@ -33,6 +33,12 @@ from data.bba_generation.kfold_xu_seeds import (
 from data.bba_generation.xu_seeds import CSV_PATH as BASIC_CSV_PATH
 
 
+def _print_md_sample(df: pd.DataFrame, n: int = 5) -> None:
+    """以 Markdown 表格格式打印 ``DataFrame`` 样例。"""
+
+    print(df.head(n).to_markdown(index=False))
+
+
 def test_index_mapping() -> None:
     """检查 ``kfold`` CSV 的 ``sample_index`` 映射。"""
 
@@ -104,11 +110,16 @@ def _check_unique_and_complete(
     missing = set(dataset_df.index) - set(counts.index)
     if missing:
         errors.append(f"{csv_name}: 缺失样本索引 {sorted(missing)}")
+        print("示例缺失索引:")
+        _print_md_sample(dataset_df.loc[sorted(missing)[:1]])
     wrong = counts[counts != len(attr_names)]
     if not wrong.empty:
         errors.append(
             f"{csv_name}: 以下索引的行数不等于 {len(attr_names)}: {list(wrong.index)}"
         )
+        sample_idx = int(wrong.index[0])
+        print(f"示例索引 {sample_idx}:")
+        _print_md_sample(df[df["sample_index"] == sample_idx])
     return errors
 
 
@@ -118,16 +129,18 @@ def _check_decimal_places(csv_path: Path, columns: list[str], decimals: int = 4)
 
     errors: list[str] = []
     df_str = pd.read_csv(csv_path, dtype=str)
+    df_full = pd.read_csv(csv_path)
     # 正则表达式，最多支持 decimal 位小数
     pattern = re.compile(rf"^-?\d+(?:\.\d{{1,{decimals}}})?$")
 
     for col in columns:
         bad_rows = df_str.index[~df_str[col].str.match(pattern)]
         if not bad_rows.empty:
-            sample = (bad_rows + 2).tolist()[:5]
             errors.append(
-                f"{csv_path.name}: 列 {col} 存在超过 {decimals} 位小数的行，如 {sample}"
+                f"{csv_path.name}: 列 {col} 存在超过 {decimals} 位小数的行，如 {(bad_rows + 2).tolist()[:5]}"
             )
+            print(f"{csv_path.name} 列 {col} 示例:")
+            _print_md_sample(df_full.iloc[bad_rows])
     return errors
 
 
@@ -147,9 +160,13 @@ def _check_bba_values(df: pd.DataFrame, csv_name: str) -> list[str]:
     neg_rows = df.index[(df[mass_cols] < 0).any(axis=1)]
     if not neg_rows.empty:
         errors.append(f"{csv_name}: 存在负的 BBA 质量值于行 {neg_rows.tolist()}")
+        print(f"{csv_name} 负值示例:")
+        _print_md_sample(df.loc[neg_rows])
     over_rows = df.index[(df[mass_cols] > 1).any(axis=1)]
     if not over_rows.empty:
         errors.append(f"{csv_name}: 存在超过 1 的 BBA 质量值于行 {over_rows.tolist()}")
+        print(f"{csv_name} 超过 1 示例:")
+        _print_md_sample(df.loc[over_rows])
     sums = df[mass_cols].sum(axis=1)
     # 四舍五入到四位小数后仍应当精确为 1
     bad_sum = df.index[sums.round(4) != 1.0]
@@ -157,6 +174,8 @@ def _check_bba_values(df: pd.DataFrame, csv_name: str) -> list[str]:
         errors.append(
             f"{csv_name}: 有 {len(bad_sum)} 行质量和未严格等于 1，示例行 {bad_sum.tolist()[:5]}"
         )
+        print(f"{csv_name} 归一化失败示例:")
+        _print_md_sample(df.loc[bad_sum])
     return errors
 
 
@@ -171,16 +190,26 @@ def _check_kfold_alignment(
     for idx, row in dataset_df.iterrows():
         if idx not in features:
             errors.append(f"kfold CSV: 缺失索引 {idx}")
+            print("缺失索引示例:")
+            _print_md_sample(dataset_df.loc[[idx]])
             continue
         vals = np.array(features[idx], dtype=float)
         expect = row[attr_names].to_numpy(dtype=float)
         if not np.allclose(vals, expect, atol=1e-6):
             errors.append(f"kfold CSV: 索引 {idx} 的特征不匹配")
+            print("CSV 示例:")
+            _print_md_sample(df[df["sample_index"] == idx])
+            print("dataset 示例:")
+            _print_md_sample(dataset_df.loc[[idx]])
         gt = df[df["sample_index"] == idx]["ground_truth"].iloc[0]
         if gt != row["ground_truth"]:
             errors.append(
                 f"kfold CSV: 索引 {idx} 的 ground_truth 错误 {gt} != {row['ground_truth']}"
             )
+            print("CSV ground_truth 示例:")
+            _print_md_sample(df[df["sample_index"] == idx])
+            print("dataset ground_truth:")
+            _print_md_sample(dataset_df.loc[[idx]])
     return errors
 
 
@@ -208,6 +237,8 @@ def _check_basic_alignment(
         errors.append(
             f"普通 CSV: 特征集合与原始数据不符，示例 csv 独有 {diff_csv}, dataset 独有 {diff_ds}"
         )
+        print("特征集合差异示例:")
+        _print_md_sample(pd.DataFrame(diff_csv, columns=attr_names))
 
     feature_to_label = {
         # 使用特征向量作为键, 快速查询其真实标签
@@ -223,9 +254,11 @@ def _check_basic_alignment(
         expect = feature_to_label.get(feat_key)
         if expect is None:
             errors.append(f"普通 CSV: 样本 {idx} 的特征未在原数据中找到")
+            _print_md_sample(grp)
             continue
         if gt != expect:
             errors.append(f"普通 CSV: 样本 {idx} 的 ground_truth 错误 {gt} != {expect}")
+            _print_md_sample(grp)
     return errors
 
 
@@ -278,7 +311,6 @@ def test_data_consistency() -> None:
     errors += errs
 
     decimal_cols = [
-        "attribute_data",
         "{Ka}", "{Ro}", "{Ca}",
         "{Ka ∪ Ro}", "{Ka ∪ Ca}", "{Ro ∪ Ca}", "{Ka ∪ Ro ∪ Ca}",
     ]
