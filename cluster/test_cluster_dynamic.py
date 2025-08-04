@@ -70,7 +70,7 @@ def construct_clusters_with_dynamic_bba(cluster_element_list: Dict[str, List[str
 
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':  # pragma: no cover
-    # todo 默认配置，根据不同的CSV 文件或 BBA 簇修改
+    # todo 默认配置，根据不同的 CSV 文件或 BBA 簇修改
     example_name = 'Example_3_3.csv'
 
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
