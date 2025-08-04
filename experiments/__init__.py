@@ -16,4 +16,5 @@ __all__ = [
     "tune_hyperparams_seeds",
     "tune_hyperparams_glass",
     "tune_hyperparams_a_kfold",
+    "application_utils",
 ]

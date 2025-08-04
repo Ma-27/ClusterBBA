@@ -195,18 +195,21 @@ if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(
         description="搜索 K 折交叉验证 BBA 的最佳 lambda、mu 组合"
     )
+
     parser.add_argument(
         "--dataset",
         type=str,
         default="iris",
         help="数据集名称, 对应 kfold_xu_bba_<dataset>.csv",
     )
+
     parser.add_argument(
         "--fold",
         type=int,
         default=None,
         help="仅评估指定折号 (从 0 开始), 默认为全部折",
     )
+
     parser.add_argument(
         "--debug",
         action="store_true",

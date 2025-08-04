@@ -2,7 +2,8 @@
 """Iris 数据集上的证据融合分类实验
 =================================
 
-使用 :func:`utility.io_application.load_application_dataset` 读取``kfold_xu_bba_iris.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
+使用 :func:`utility.io_application.load_application_dataset` 读取``kfold_xu_bba_iris.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经 Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
+原来研究使用的 cmd 参数：--method Proposed --kfold
 """
 
 from __future__ import annotations
@@ -13,11 +14,6 @@ import sys
 from pathlib import Path
 from typing import Callable, List
 
-import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
-from tabulate import tabulate
-from tqdm import tqdm
-
 # 确保包导入路径指向项目根目录
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if BASE_DIR not in sys.path:
@@ -25,7 +21,6 @@ if BASE_DIR not in sys.path:
 
 # 依赖本项目内现成工具函数 / 模块
 import config
-from config import PROGRESS_NCOLS
 from fusion.ds_rule import combine_multiple
 from fusion.murphy_rule import murphy_combine
 from fusion.deng_mae_rule import modified_average_evidence
@@ -33,9 +28,21 @@ from fusion.xiao_bjs_rule import xiao_bjs_combine
 from fusion.xiao_rb_rule import xiao_rb_combine
 from fusion.xiao_bjs_pure_rule import xiao_bjs_pure_combine
 from fusion.my_rule import my_combine
-from utility.io_application import load_application_dataset
-from utility.probability import pignistic, argmax
+from utility.io_application import (
+    load_application_dataset,
+    load_application_dataset_cv,
+)
 from utility.bba import BBA
+from experiments.application_utils import (
+    run_classification,
+    evaluate_accuracy as _evaluate_accuracy,
+    load_kfold_params,
+    kfold_evaluate,
+)
+
+# ---------------------------------------------------------------------------
+# 数据集标签与可选融合方法
+# ---------------------------------------------------------------------------
 
 LABEL_MAP = {"Se": "Setosa", "Ve": "Versicolor", "Vi": "Virginica"}
 
@@ -51,103 +58,50 @@ METHODS = {
 }
 
 
-def collect_predictions(samples: List[tuple[int, List[BBA], str]], combine_func: Callable[[List[BBA]], BBA], *,
-                        show_progress: bool = True, warn: bool = False) -> tuple[List[str], List[str]]:
-    """根据给定融合函数生成预测结果列表."""
-
-    y_true: List[str] = []
-    y_pred: List[str] = []
-
-    iterable = samples
-    # tqdm 用于显示当前评估进度，PROGRESS_NCOLS 来源于全局配置
-    if show_progress:
-        iterable = tqdm(samples, desc="评估进度", ncols=PROGRESS_NCOLS)
-
-    for idx, bbas, gt in iterable:
-        # ---------- 预测流程 ---------- #
-        # 1. 多条 BBA 先经指定规则融合
-        try:
-            fused = combine_func(bbas)
-        except ValueError as e:
-            if warn:
-                print(f"样本 {idx} DS 组合失败: {e}")
-            wrong_label = next(l for l in LABEL_MAP.values() if l != gt)
-            y_true.append(gt)
-            y_pred.append(wrong_label)
-            continue
-        # 2. 对融合后的 BBA 进行 Pignistic 转换得到概率分布
-        prob = pignistic(fused)
-        # 3. 取概率最大的焦元作为预测类别
-        fs, _ = argmax(prob)
-        pred_short = next(iter(fs)) if fs else ""
-        # 转换为完整标签，防止缩写难以阅读
-        pred_full = LABEL_MAP.get(pred_short, pred_short)
-
-        # 记录真实标签与预测标签，供后续计算评估指标
-        y_true.append(gt)
-        y_pred.append(pred_full)
-
-    return y_true, y_pred
-
-
-def run_classification(samples: List[tuple[int, List, str]], combine_func: Callable[[List[BBA]], BBA], method_name: str,
-                       *, warn: bool = True) -> None:
-    # 调用统一的预测函数获取标签
-    y_true, y_pred = collect_predictions(samples, combine_func, show_progress=True, warn=warn)
-
-    # ------------------------------ 评估指标 ------------------------------ #
-    # 计算整体准确率与宏观 F1 分数
-    acc = accuracy_score(y_true, y_pred)
-    f1_macro = f1_score(y_true, y_pred, average="macro")
-
-    # 使用完整标签顺序计算各类别 F1，方便与表头一一对应
-    labels = list(LABEL_MAP.values())
-    f1_each = f1_score(y_true, y_pred, labels=labels, average=None)
-
-    # 组装行数据并用 tabulate 生成 Markdown 表格，便于与文档直接结合
-    rows = [[label, f"{score:.4f}"] for label, score in zip(labels, f1_each)]
-    rows.append(["Accuracy", f"{acc:.4f}"])
-    rows.append(["F1score", f"{f1_macro:.4f}"])
-    df_res = pd.DataFrame(rows, columns=["Class / Metric", method_name])
-    print(tabulate(df_res, headers="keys", tablefmt="pipe", showindex=False))
-
-    # ------------------------------ 混淆矩阵 ------------------------------ #
-    # cm[i, j] 表示真实类别 i 被预测成类别 j 的次数
-    cm = confusion_matrix(y_true, y_pred, labels=labels)
-    print("\nConfusion Matrix:")
-    # 行列均为目标类别，直观展示预测错配情况
-    print(pd.DataFrame(cm, index=labels, columns=labels).to_string())
+# ---------------------------------------------------------------------------
+# 对外暴露的评估函数
+# ---------------------------------------------------------------------------
 
 
 def evaluate_accuracy(*, samples: List[tuple[int, List[BBA], str]] | None = None, debug: bool = False,
                       show_progress: bool = False, csv_path: str | Path | None = None,
                       combine_func: Callable[[List[BBA]], BBA] = my_combine, data_progress: bool = True,
-                      warn: bool = False) -> float:
+                      warn: bool = False, ) -> float:
     """计算在 Iris 数据集上的分类准确率.
 
-    Parameters
-    ----------
-    samples : list of tuple, optional
-        预载入的样本列表 ``[(idx, [BBA, ...], ground_truth), ...]``。
-        若提供，则直接使用该数据而无需再次从 ``csv_path`` 读取。
+    这是 :func:`experiments.application_utils.evaluate_accuracy` 的一个包裹，仅额外提供 ``LABEL_MAP`` 默认参数。
     """
 
-    if samples is None:
-        if csv_path is None:
-            csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_iris.csv"
-        samples = load_application_dataset(debug=debug, csv_path=csv_path, show_progress=data_progress)
+    if samples is None and csv_path is None:
+        csv_path = (
+                Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_iris.csv"
+        )
+    return _evaluate_accuracy(
+        samples=samples,
+        debug=debug,
+        show_progress=show_progress,
+        csv_path=csv_path,
+        combine_func=combine_func,
+        data_progress=data_progress,
+        warn=warn,
+        label_map=LABEL_MAP,
+    )
 
-    # 调用统一的评价函数获取标签
-    y_true, y_pred = collect_predictions(samples, combine_func, show_progress=show_progress, warn=warn)
 
-    return float(accuracy_score(y_true, y_pred))
-
+# ---------------------------------------------------------------------------
+# 命令行入口
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="在 Iris 数据集上进行证据融合分类")
-    parser.add_argument("--full", action="store_true",
-                        help="评估全部 150 条样本")
+        description="在 Iris 数据集上进行证据融合分类"
+    )
+
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="评估全部 150 条样本",
+    )
 
     # fixme 指定融合规则：从 METHODS 字典中取出对应的函数和名称
     parser.add_argument(
@@ -157,12 +111,20 @@ if __name__ == "__main__":
         default="Proposed",
         help="选择融合规则，此处可以任意更改",
     )
+
+    parser.add_argument(
+        "--kfold",
+        action="store_true",
+        help="Proposed 方法按折使用最优超参评估",
+    )
+
     parser.add_argument(
         "--alpha",
         type=float,
         default=None,
         help="覆盖 config.py 中的 ALPHA 超参",
     )
+
     args = parser.parse_args()
 
     # 若指定 alpha, 则覆盖 config.py 中的默认值
@@ -172,21 +134,34 @@ if __name__ == "__main__":
             import fusion.my_rule as my_rule
 
             my_rule.ALPHA = args.alpha
-        except Exception:
+        except Exception:  # pragma: no cover - 导入失败时忽略
             pass
 
     # fixme 如果 --full 参数未指定，则仅评估前 2 条样本
     # debug = not args.full
     debug = args.full
 
-    # fixme CSV 文件路径，根据实验灵活修改
+    # 读取包含多折信息的数据集
     csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_iris.csv"
 
-    method_name = args.method
-    combine_func = METHODS[method_name]
-
-    # 载入数据集
-    samples = load_application_dataset(debug=debug, csv_path=csv_path)
-    # 进行分类任务评估
-    combine_func = METHODS[args.method]
-    run_classification(samples, combine_func, args.method, warn=True)
+    if args.method == "Proposed" and args.kfold:
+        # ------------------------------ K 折评估 ------------------------------ #
+        params_path = (
+                Path(__file__).resolve().parents[1]
+                / "experiments_result"
+                / "kfold_best_params_iris.csv"
+        )
+        if not params_path.exists():
+            raise FileNotFoundError(f"缺少超参数文件: {params_path}")
+        param_map = load_kfold_params(params_path)
+        # 载入数据集
+        samples_cv = load_application_dataset_cv(debug=debug, csv_path=csv_path)
+        # 进行分类任务评估
+        kfold_evaluate(samples_cv, param_map, LABEL_MAP, METHODS["Proposed"])
+    else:
+        # ---------------------------- 单次评估流程 ---------------------------- #
+        combine_func = METHODS[args.method]
+        # 载入数据集
+        samples = load_application_dataset(debug=debug, csv_path=csv_path)
+        # 进行分类任务评估
+        run_classification(samples, combine_func, LABEL_MAP, args.method)
