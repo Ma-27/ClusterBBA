@@ -80,7 +80,7 @@ def visualize_clusters(
         # 簇名称
         ax.text(x, y + size * 0.35, clus.name, ha='center', va='bottom', fontsize=10)
         # 元素名称列表
-        elems = "\n".join(name for name, _ in clus.get_bbas())
+        elems = "\n".join(b.name for b in clus.get_bbas())
         ax.text(x, y, elems, ha='center', va='center', fontsize=8)
         # 簇内散度
         intra = clus.intra_divergence()

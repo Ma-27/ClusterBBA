@@ -60,9 +60,9 @@ def bba_dynamic_adding(csv_path: str) -> None:
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
     mc = MultiClusters()
-    for name, bba in bbas:
-        print(f"------------------------------ Round: {name} ------------------------------")
-        mc.add_bba_by_reward(name, bba)
+    for bba in bbas:
+        print(f"------------------------------ Round: {bba.name} ------------------------------")
+        mc.add_bba_by_reward(bba)
         _print_distance_info(mc)
         print()
 

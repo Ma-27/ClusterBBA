@@ -52,9 +52,9 @@ def compute_distances(alphas: List[float], *, delta: float = SCALE_DELTA,
         m2 = BBA({frozenset({"A1"}): 1 - a, frozenset({"A2"}): a})
 
         c1 = initialize_empty_cluster("Clus1")
-        c1.add_bba("m1", m1)
+        c1.add_bba(m1)
         c2 = initialize_empty_cluster("Clus2")
-        c2.add_bba("m2", m2)
+        c2.add_bba(m2)
 
         # RD_CCJS 需要指定簇高阶 H，取两簇的最大值
         H = max(c1.h, c2.h)

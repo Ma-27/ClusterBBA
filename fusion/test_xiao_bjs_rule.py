@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     print("\n----- Xiao BJS‑Belief Entropy 组合结果 -----")
     for k in range(2, len(raw_bbas) + 1):
-        cur_bbas = [b for _, b in raw_bbas[:k]]
+        cur_bbas = raw_bbas[:k]
         crd = origin_credibility_degrees(cur_bbas)
         iv = information_volume(cur_bbas)
         weight = credibility_degrees(cur_bbas)
@@ -80,5 +80,6 @@ if __name__ == "__main__":
     result_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))
     os.makedirs(result_dir, exist_ok=True)
     result_path = os.path.join(result_dir, out_name)
-    save_bba(combined_bba, name="m", focal_cols=None, out_path=result_path, default_name=out_name, float_format="%.4f")
+    combined_bba.name = "m"
+    save_bba(combined_bba, focal_cols=None, out_path=result_path, default_name=out_name, float_format="%.4f")
     print(f"\n结果已保存到: {result_path}")

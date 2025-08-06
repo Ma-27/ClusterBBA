@@ -99,11 +99,11 @@ if __name__ == '__main__':  # pragma: no cover
     mc = MultiClusters()
     history: EntropyHistory = {}
     step = 0
-    for name, bba in bbas:
+    for bba in bbas:
         step += 1
         # 屏蔽 MultiClusters 内部的打印，仅关注熵值输出
         with contextlib.redirect_stdout(StringIO()):
-            mc.add_bba_by_reward(name, bba)
+            mc.add_bba_by_reward(bba)
         _record_entropies(step, mc, history)
 
     # 构建输出图像路径，文件名与其他实验保持一致风格

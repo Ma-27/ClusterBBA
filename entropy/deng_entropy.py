@@ -82,15 +82,15 @@ if __name__ == "__main__":
 
     # 载入数据
     df = pd.read_csv(csv_path)
-    bbas, focal_cols = load_bbas(df)  # load_bbas 返回 ([(name, bba_dict), …], focal_cols)
+    bbas, focal_cols = load_bbas(df)  # load_bbas 返回 [BBA, …] 和焦元列顺序
 
     # 计算并打印 Deng 熵
     results = []
     print("----- Deng Entropy 结果 -----")
-    for name, bba in bbas:
+    for bba in bbas:
         ed = deng_entropy(bba)
-        print(f"{name}: {ed:.4f}")
-        results.append([name, round(ed, 4)])
+        print(f"{bba.name}: {ed:.4f}")
+        results.append([bba.name, round(ed, 4)])
 
     # 保存结果到 experiments_result 目录
     result_dir = os.path.normpath(os.path.join(base_dir, "..", "experiments_result"))

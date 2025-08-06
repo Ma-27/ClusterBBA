@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
 """Example 3.3.3 三指标面墙示例
 ===============================
-仿照 ``group_surface.py``，在 Example 3.3.3 数据集上，
-动态加入 BBA 后计算每个簇心的 Deng 熵、各簇的簇内散度，
-以及簇与簇之间的 RD_CCJS 距离，并以三面墙展示。
+仿照 ``group_surface.py``，在 Example 3.3.3 数据集上，动态加入 BBA 后计算每个簇心的 Deng 熵、各簇的簇内散度，以及簇与簇之间的 RD_CCJS 距离，并以三面墙展示。
 
-本版本对原始绘图进行改进，使得 ``D_intra``、``RD_CCJS`` 与
-``Deng`` 熵各自采用独立的纵轴范围，从而在数值量级差异较大
-时也能清楚地观察其变化趋势。RD_CCJS 面墙的绘制方式亦
-进行了调整：每一对簇之间的距离将单独形成一个瀑布曲线，
-因此若存在 ``K`` 个簇，则会绘制 ``K(K-1)/2`` 条瀑布曲线。
+本版本对原始绘图进行改进，使得 ``D_intra``、``RD_CCJS`` 与``Deng`` 熵各自采用独立的纵轴范围，从而在数值量级差异较大时也能清楚地观察其变化趋势。RD_CCJS 面墙的绘制方式亦进行了调整：每一对簇之间的距离将单独形成一个瀑布曲线，因此若存在 ``K`` 个簇，则会绘制 ``K(K-1)/2`` 条瀑布曲线。
 """
 
 from __future__ import annotations
@@ -191,10 +185,10 @@ if __name__ == '__main__':  # pragma: no cover
     mc = MultiClusters()
     history: MetricHistory = {}
     step = 0
-    for name, bba in bbas:
+    for bba in bbas:
         step += 1
         with contextlib.redirect_stdout(StringIO()):
-            mc.add_bba_by_reward(name, bba)
+            mc.add_bba_by_reward(bba)
         _record_metrics(step, mc, history)
 
     res_dir = os.path.normpath(os.path.join(base_dir, 'experiments_result'))

@@ -21,7 +21,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-__all__ = ['average_divergence', 'compute_avg_divergence_from_csv']
+__all__ = ['average_divergence', 'compute_avg_divergence_from_csv', 'sort_distances']
 
 
 # ------------------------------ 工具函数 ------------------------------ #
@@ -49,10 +49,23 @@ def average_divergence(dist_df: pd.DataFrame) -> float:
     return float(values.mean())
 
 
+# 对距离向量进行排序并返回 ``(name, value)`` 列表
+def sort_distances(dist_series: pd.Series, ascending: bool = True):
+    """按值对距离 ``Series`` 排序。
+
+    ``dist_series`` 可以是距离矩阵的一行或一列，索引为 BBA 名称。
+    返回 ``[(name, dist), ...]`` 按 ``ascending`` 控制升降序。
+    """
+
+    pairs = list(dist_series.items())
+    pairs.sort(key=lambda x: x[1], reverse=not ascending)
+    return pairs
+
+
 # ------------------------------ 主程序 ------------------------------ #
 if __name__ == '__main__':
     # 默认文件名，可通过命令行覆盖，todo 这里可以修改
-    default_csv = 'bjs_divergence_Example_0_4.csv'
+    default_csv = 'bjs_divergence_Example_3_3_3.csv'
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_csv
 
     # 构造绝对路径：experiments_result/<csv_name>

@@ -38,14 +38,14 @@ D_CCJS无法成为一个真正的度量，因此已经被弃用。在命名规�
 
 import math
 import os
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# 依赖本项目内现成工具函数 / 模块
 from config import EPS, LOG_BASE
 from utility.bba import BBA
-# 依赖本项目内现成工具函数 / 模块
 from utility.plot_style import apply_style
 from utility.plot_utils import savefig
 
@@ -74,16 +74,20 @@ def d_ccjs_divergence(m_p: BBA, m_q: BBA, n_p: int, n_q: int) -> float:
 
 
 # 生成对称 D_CCJS divergence 矩阵
+# ``sizes`` 为各簇规模映射, 若缺失则默认 1
 def divergence_matrix(
-        bbas: List[Tuple[str, BBA]],
+        bbas: List[BBA],
         sizes: Dict[str, int]
 ) -> pd.DataFrame:
-    names = [name for name, _ in bbas]
+    names = [bba.name for bba in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            mat[i][j] = mat[j][i] = d_ccjs_divergence(bbas[i][1], bbas[j][1], sizes[names[i]], sizes[names[j]])
+            n_p = sizes.get(names[i], 1)
+            n_q = sizes.get(names[j], 1)
+            mat[i][j] = mat[j][i] = d_ccjs_divergence(
+                bbas[i], bbas[j], n_p, n_q)
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 
@@ -107,16 +111,20 @@ def d_ccjs_metric(m_p: BBA, m_q: BBA, n_p: int, n_q: int) -> float:
 
 
 # 生成 D_CCJS metric 矩阵
+# ``sizes`` 为各簇规模映射, 若缺失则默认 1
 def metric_matrix(
-        bbas: List[Tuple[str, BBA]],
+        bbas: List[BBA],
         sizes: Dict[str, int]
 ) -> pd.DataFrame:
-    names = [name for name, _ in bbas]
+    names = [bba.name for bba in bbas]
     size = len(names)
     mat = [[0.0] * size for _ in range(size)]
     for i in range(size):
         for j in range(i + 1, size):
-            mat[i][j] = mat[j][i] = d_ccjs_metric(bbas[i][1], bbas[j][1], sizes[names[i]], sizes[names[j]])
+            n_p = sizes.get(names[i], 1)
+            n_q = sizes.get(names[j], 1)
+            mat[i][j] = mat[j][i] = d_ccjs_metric(
+                bbas[i], bbas[j], n_p, n_q)
     return pd.DataFrame(mat, index=names, columns=names).round(4)
 
 

@@ -12,6 +12,7 @@ SCALE_EPSILON: float = 4e-3
 INTRA_EPS: float = 1e-6
 
 # 单簇单元判断阈值，本质是 BJS 阈值，用于处理单簇单元 (K=1, n1=1) 边界
+# 此值可能会影响初始划分结果
 THRESHOLD_BJS: float = 0.5571
 
 # RD_CCJS 随机二分次数
@@ -20,8 +21,8 @@ SPLIT_TIMES: int = 5
 # 计算 BJS / D_CCJS 时避免取 log(0) 的极小常数
 EPS: float = 1e-12
 
-# 默认分形深度，todo 可根据实际情况修改
-SEG_DEPTH: int = 1
+# 默认分形深度，todo 仅在模块测试时启用，可根据实际情况修改
+SEG_DEPTH: int = 2
 
 # 实验中随机打乱顺序的重复次数
 SHUFFLE_TIMES: int = 100
@@ -32,10 +33,15 @@ PROGRESS_NCOLS: int = 120
 # Information Volume 中的 epsilon
 IV_EPSILON: float = 0.001
 
-# 专家超参数与灵敏度系数，用于最后的证据融合
+# 专家超参数 $\alpha$，用于最后的证据融合与证据折扣。
 ALPHA: float = 1.0
-LAMBDA: float = 1.0
+# $\mu$ 是簇-簇散度灵敏度系数（小于 1 的话，越小越放大；大于 1 的话，越大越弱化）
 MU: float = 1.0
+# $\lambda$ 是簇内散度灵敏度系数（小于 1 的话，越小越放大；大于 1 的话，越大越弱化）
+LAMBDA: float = 1.0
 
 # 动态规划分簇时对簇数量的惩罚项，防止出现大量单元素簇
 DP_PENALTY: float = 0.1
+
+# 交叉验证折数
+K_FOLD_SPLITS = 5

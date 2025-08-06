@@ -54,7 +54,8 @@ def load_base_bba(csv_name: str) -> BBA:
     bbas, _ = load_bbas(df)
     if not bbas:
         raise ValueError("CSV 文件为空，未找到 BBA")
-    return bbas[0][1]
+    # 仅取第一条 BBA 作为基线
+    return bbas[0]
 
 
 def has_converged(diff_history: deque[float],
@@ -68,11 +69,12 @@ def has_converged(diff_history: deque[float],
 
 # ------------------------------ 工具函数 ------------------------------ #
 
-def perturb_bba(base: BBA, delta: float) -> BBA:
-    """在 `base` 上加入 L¹-幅度为 `delta` 的随机扰动（一次性保证合法）。
+def perturb_bba(base: BBA, delta: float, name: str | None = None) -> BBA:
+    """在 ``base`` 上加入 L¹-幅度为 ``delta`` 的随机扰动（一次性保证合法）。
 
     - 噪声零和，L¹=δ
     - 结果中所有焦元质量非负
+    - ``name`` 用于给生成的 BBA 指定唯一名称
     """
     # θ 的所有非空焦元
     focals = [fs for fs in base.theta_powerset() if fs]
@@ -96,7 +98,7 @@ def perturb_bba(base: BBA, delta: float) -> BBA:
 
     # 4) 封装为 BBA（去掉极小噪声）
     mass = {fs: float(v) for fs, v in zip(focals, new_vec) if v > 1e-12}
-    return BBA(mass, frame=base.frame)
+    return BBA(mass, frame=base.frame, name=name)
 
 
 def limit_entropy(bba: BBA, eps: float = 1e-3, max_iter: int = 50) -> float:
@@ -125,7 +127,7 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
     固定 δ 运行实验，返回每轮的极限熵；若 **连续 need_rounds 轮** 的 |Deng 熵增量| < stop_eps，则视为收敛，后续填 NaN 以便可视化时自动断线。
     """
     clus = initialize_empty_cluster("Clus")
-    clus.add_bba("m0", BASE_BBA)
+    clus.add_bba(BASE_BBA)
 
     prev_ent = limit_entropy(clus.get_centroid())
     entropies = [prev_ent]
@@ -136,10 +138,11 @@ def run_single_delta(delta: float, rounds: int = PERTURBATION_BBA_NUMBERS, stop_
 
     for r in range(1, rounds + 1):
         # 每轮生成一条扰动 BBA 并加入簇
-        m = perturb_bba(BASE_BBA, delta)
+        m_name = f"{BASE_BBA.name}_p{r}"
+        m = perturb_bba(BASE_BBA, delta, name=m_name)
         print(f"Round {r} delta={delta}")
-        _print_bba(f"m{r}", m)
-        clus.add_bba(f"m{r}", m)
+        _print_bba(m_name, m)
+        clus.add_bba(m)
 
         # 2) 计算当前簇心极限熵与增量
         ent = limit_entropy(clus.get_centroid())

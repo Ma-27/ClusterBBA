@@ -27,7 +27,7 @@ from utility.io import load_bbas
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':
     # todo 默认示例文件，可以灵活修改
-    default_name = 'Example_0.csv'
+    default_name = 'Example_3_3_3.csv'
     # 处理命令行参数：CSV 文件名
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 

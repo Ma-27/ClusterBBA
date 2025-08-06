@@ -23,9 +23,9 @@ from utility.probability import pignistic, argmax
 from utility.io import load_bbas
 
 
-def test_bba(name: str, bba: BBA) -> None:
+def test_bba(bba: BBA) -> None:
     """测试单条 BBA 的基本操作"""
-    print(f"--------------- {name} ---------------")
+    print(f"--------------- {bba.name} ---------------")
 
     print("--- BBA 初始化 & 基本属性 ---")
     print("识别框架:", sorted(bba.frame))
@@ -65,9 +65,9 @@ def test_bba(name: str, bba: BBA) -> None:
     print()
 
     print("--- Pignistic 概率 ---")
-    prob = pignistic(bba, name)
+    prob = pignistic(bba)
     order = [BBA.format_set(fs) for fs in sorted(prob.keys(), key=BBA._set_sort_key)]
-    row = [name] + prob.to_series(order)
+    row = [bba.name] + prob.to_series(order)
     df_prob = pd.DataFrame([row], columns=["BBA"] + order).round(4)
     print(df_prob.to_markdown(tablefmt="github", floatfmt=".4f"))
 
@@ -80,7 +80,7 @@ def test_bba(name: str, bba: BBA) -> None:
 if __name__ == "__main__":  # pragma: no cover
     """从 CSV 加载 BBA 并逐一演示"""
     # todo 默认示例文件，可以灵活修改
-    default_name = "Example_0.csv"
+    default_name = "Example_3_3.csv"
     csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
 
     # 确定项目根目录：当前脚本位于 utility/，故上溯一级
@@ -93,5 +93,5 @@ if __name__ == "__main__":  # pragma: no cover
     df = pd.read_csv(csv_path)
     bbas, _ = load_bbas(df)
 
-    for name, bba in bbas:
-        test_bba(name, bba)
+    for bba in bbas:
+        test_bba(bba)

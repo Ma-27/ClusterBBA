@@ -24,15 +24,18 @@ class BBA(dict):
         return (len(fs), tuple(sorted(fs)))
 
     frame: FrozenSet[str]
+    name: str
 
     def __init__(self,
                  mass: Optional[Dict[FrozenSet[str], float]] = None,
-                 frame: Optional[Iterable[str]] = None) -> None:
+                 frame: Optional[Iterable[str]] = None,
+                 name: Optional[str] = None) -> None:
         mass = mass or {}
         elems = set(frame) if frame is not None else set()
         for fs in mass.keys():
             elems.update(fs)
         self.frame = frozenset(elems)
+        self.name = name or "m"
 
         expanded: Dict[FrozenSet[str], float] = {
             fs: float(v) for fs, v in mass.items() if fs
@@ -79,7 +82,7 @@ class BBA(dict):
         return self.subset_cardinality(self.frame)
 
     def __repr__(self) -> str:  # pragma: no cover - 调试信息
-        return f"BBA({dict.__repr__(self)})"
+        return f"BBA(name={self.name!r}, mass={dict.__repr__(self)})"
 
     # ------------------------ I/O 助手 ------------------------ #
     @staticmethod

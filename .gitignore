@@ -11,16 +11,6 @@ build/
 venv/
 .env/
 
-# 数据文件（如 CSV, Excel 等）
-data/*.csv
-data/*.xlsx
-
-# 自动生成的图像、结果文件（可视化输出）
-figures/*.png
-figures/*.jpg
-figures/*.pdf
-figures/*.svg
-
 # PyCharm 项目配置（通常应忽略除非团队约定共享）
 .idea/
 !.idea/inspectionProfiles/

@@ -51,9 +51,9 @@ def _calc_rd(
             m2 = BBA({frozenset({"A"}): 0.0001, frozenset({"B"}): 0.9999})
 
             c1 = initialize_empty_cluster("Clus1")
-            c1.add_bba("m1", m1)
+            c1.add_bba(m1)
             c2 = initialize_empty_cluster("Clus2")
-            c2.add_bba("m2", m2)
+            c2.add_bba(m2)
 
             if vary_delta:
                 # 枚举 delta，epsilon 固定

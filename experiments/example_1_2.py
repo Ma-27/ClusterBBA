@@ -49,9 +49,9 @@ def compute_distances(alphas: List[float]) -> pd.DataFrame:
         m2 = BBA({frozenset({"A"}): 1 - a, frozenset({"B"}): a})
 
         c1 = initialize_empty_cluster("Clus1")
-        c1.add_bba("m1", m1)
+        c1.add_bba(m1)
         c2 = initialize_empty_cluster("Clus2")
-        c2.add_bba("m2", m2)
+        c2.add_bba(m2)
 
         # 指定 RD_CCJS 的高阶 H
         H = max(c1.h, c2.h)

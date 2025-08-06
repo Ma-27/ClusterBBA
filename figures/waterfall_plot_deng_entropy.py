@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 """分形算子下簇心 Deng 熵的瀑布图示例
 =======================================
-本脚本以 ``waterfall_plot.py`` 为蓝本，读取 Example 3.7 数据集，
-动态地将 BBA 加入 ``MultiClusters`` 中，并分别在 HOBPA、Average
-和 MaxEntropy 三种分形算子下计算簇心 Deng 熵。最终以三维瀑布图
-展示簇心 Deng 熵随 BBA 数量增加的变化过程。
+本脚本以 ``waterfall_plot.py`` 为蓝本，读取 Example 3.7 数据集，动态地将 BBA 加入 ``MultiClusters`` 中，并分别在 HOBPA、Average 和 MaxEntropy 三种分形算子下计算簇心 Deng 熵。最终以三维瀑布图展示簇心 Deng 熵随 BBA 数量增加的变化过程。
 """
 
 from __future__ import annotations
@@ -51,7 +48,7 @@ _fractal_funcs = {
 def _centroid_entropy(clus, func):
     """根据指定分形函数计算簇心 Deng 熵。"""
     # 收集簇中所有 BBA
-    bbas = [b for _, b in clus.get_bbas()]
+    bbas = clus.get_bbas()
     if not bbas:
         return float("nan")
     # 分形函数需要知道当前最高阶数 h
@@ -137,7 +134,7 @@ def _plot_history(history: EntropyHistory, n_steps: int, out_path: str) -> None:
 
 
 if __name__ == '__main__':  # pragma: no cover
-    # 默认使用的示例数据集，可根据需要修改
+    # todo 默认使用的示例数据集，可根据需要修改
     example_name = 'Example_3_7.csv'
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     default_csv = os.path.join(base_dir, 'data', 'examples', example_name)
@@ -151,11 +148,11 @@ if __name__ == '__main__':  # pragma: no cover
     mc = MultiClusters()
     history: EntropyHistory = {}
     step = 0
-    for name, bba in bbas:
+    for bba in bbas:
         step += 1
         # 屏蔽 ``add_bba_by_reward`` 的控制台输出
         with contextlib.redirect_stdout(StringIO()):
-            mc.add_bba_by_reward(name, bba)
+            mc.add_bba_by_reward(bba)
         _record_entropies(step, mc, history)
 
     # 输出目录，统一位于 ``experiments_result``

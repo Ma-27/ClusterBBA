@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """test_d_intra.py
 
-基于 ``cluster`` 动态加簇过程，计算每个簇的 ``D_intra``。
+基于 ``cluster`` 的自动分簇流程，计算每个簇的 ``D_intra`` 随时间的变化，并提供是否处理边界情形的命令行开关。
 """
 
 import os
@@ -16,7 +16,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
+from cluster.one_cluster import Cluster  # type: ignore
 from cluster.multi_clusters import MultiClusters  # type: ignore
 from utility.formula_labels import LABEL_D_INTRA
 from utility.plot_style import apply_style
@@ -28,20 +28,28 @@ apply_style()
 DIHistory = Dict[str, List[float]]
 
 
-def _calc_intra(clus: Cluster, clusters: List[Cluster]) -> float:
-    """使用 ``MultiClusters`` 的逻辑计算 ``D_intra``。"""
-    val = MultiClusters._calc_intra_divergence(clus, clusters)
+def _calc_intra(clus: Cluster, clusters: List[Cluster], handle_boundary: bool) -> float:
+    """使用 ``MultiClusters`` 的逻辑计算 ``D_intra``。
+
+    ``handle_boundary`` 指示是否对单元素簇进行旧版边界处理。
+    """
+    val = MultiClusters._calc_intra_divergence(clus, clusters, handle_boundary)
     if val is None:
         return float('nan')
     return float(val)
 
 
-def _record_history(step: int, clusters: Dict[str, Cluster], history: DIHistory) -> None:
-    """记录当前各簇的 ``D_intra``。"""
+def _record_history(step: int, clusters: Dict[str, Cluster], history: DIHistory, handle_boundary: bool) -> None:
+    """记录当前各簇的 ``D_intra``。
+
+    ``handle_boundary`` 控制是否在 ``D_intra`` 计算时处理边界。"""
+    # ``clus_list`` 用于保持计算顺序一致
     clus_list = list(clusters.values())
     for clus in clus_list:
-        val = _calc_intra(clus, clus_list)
+        # 计算指定簇在当前所有簇集合中的 ``D_intra``
+        val = _calc_intra(clus, clus_list, handle_boundary)
         if clus.name not in history:
+            # 若此前未出现该簇，需要补齐前面阶段的数据
             history[clus.name] = [float('nan')] * (step - 1)
         history[clus.name].append(val)
     for cname, vals in history.items():
@@ -60,8 +68,10 @@ def _record_history(step: int, clusters: Dict[str, Cluster], history: DIHistory)
 
 def _plot_history(history: DIHistory, save_path: str | None = None, show: bool = True) -> None:
     """绘制 ``D_intra`` 随时间变化的折线图。"""
+    # 横轴为步骤序号，从 1 开始
     steps = range(1, max(len(v) for v in history.values()) + 1)
     for cname, vals in history.items():
+        # 每个簇画一条折线
         plt.plot(steps, vals, marker='o', label=cname)
     plt.xlabel('Step')
     plt.ylabel(LABEL_D_INTRA)
@@ -77,10 +87,21 @@ def _plot_history(history: DIHistory, save_path: str | None = None, show: bool =
 
 
 if __name__ == "__main__":
-    # todo 默认示例文件名，可根据实际情况修改
-    default_name = "Example_3_7.csv"
-    # 处理命令行参数：CSV 文件名
-    csv_name = sys.argv[1] if len(sys.argv) > 1 else default_name
+    # todo 默认示例文件名，可按需要修改
+    default_name = "Example_3_7_2.csv"
+    # 命令行格式：python test_d_intra.py [CSV] [--handle-boundary]
+    # 使用 "--handle-boundary" 或 "-b" 开启边界处理逻辑
+    args = sys.argv[1:]
+
+    # todo 在这里测验，是否使用 D_intra 的替代策略。
+    handle_boundary = True
+
+    csv_name = default_name
+    for arg in args:
+        if arg in ("-b", "--handle-boundary"):
+            handle_boundary = True
+        else:
+            csv_name = arg
 
     # 确定项目根目录：当前脚本位于 divergence/，故上溯一级
     base = os.path.dirname(os.path.abspath(__file__))
@@ -93,36 +114,30 @@ if __name__ == "__main__":
     # 读取 BBA
     df = pd.read_csv(csv_path)
     all_bbas, _ = load_bbas(df)
-    order_names = [name for name, _ in all_bbas]
-    lookup = {name: bba for name, bba in all_bbas}
 
-    # todo 这里硬性指定簇的名称和成员列表，请根据数据集对应的实际情况修改
-    DEFAULT_CLUSTER_ASSIGNMENT: Dict[str, List[str]] = {
-        "Clus1": ["m1", "m2", "m3", "m4", "m5"],
-        "Clus2": ["m6", "m7", "m8", "m9", "m10", "m11", "m12", "m13"],
-        "Clus3": ["m14", "m15", "m16"],
-    }
+    # 动态分簇：使用 ``MultiClusters`` 根据收益自动选择簇。
+    mc = MultiClusters(debug=False)
 
-    # 初始化簇
-    clusters = {name: initialize_empty_cluster(name) for name in DEFAULT_CLUSTER_ASSIGNMENT}
-
+    # 用于记录各步骤的 ``D_intra`` 结果
     history: DIHistory = {}
     step = 0
 
-    # 按 CSV 顺序动态添加 BBAs
-    for bba_name in order_names:
+    # 按 CSV 顺序动态添加 BBA，并记录每一步的 ``D_intra`` 变化
+    for bba in all_bbas:
         step += 1
-        for c_name, members in DEFAULT_CLUSTER_ASSIGNMENT.items():
-            if bba_name in members:
-                clusters[c_name].add_bba(bba_name, lookup[bba_name])
-        _record_history(step, clusters, history)
+        # 根据当前簇划分策略选择最佳簇加入
+        mc.add_bba_by_reward(bba)
+        # 将当前结果写入历史
+        _record_history(step, mc._clusters, history, handle_boundary)
 
+    # 获取最终簇划分结果
+    clusters = mc._clusters
     clus_list = list(clusters.values())
 
     print("\n----- D_intra per Cluster -----")
-    results = []
+    results = []  # 保存最终 ``D_intra`` 数值
     for clus in clus_list:
-        di = clus.intra_divergence()
+        di = MultiClusters._calc_intra_divergence(clus, clus_list, handle_boundary)
         if di is None:
             print(f"{clus.name}: None")
             results.append([None])
@@ -143,6 +158,7 @@ if __name__ == "__main__":
     suffix = dataset.lower()
     if suffix.startswith('example_'):
         suffix = suffix[len('example_'):]
+    # 绘制 ``D_intra`` 变化并保存
     fig_path = os.path.join(out_dir, f'example_{suffix}_d_intra_history.png')
     _plot_history(history, save_path=fig_path)
     print(f'History figure saved to: {fig_path}')

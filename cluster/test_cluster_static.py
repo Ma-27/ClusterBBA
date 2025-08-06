@@ -55,7 +55,7 @@ def construct_all_clusters(cluster_element_list: Dict[str, List[str]], csv_path:
 # ------------------------------ 主函数 ------------------------------ #
 if __name__ == '__main__':  # pragma: no cover
     # todo 默认配置，根据不同的 CSV 文件或 BBA 簇修改
-    example_name = 'Example_3_3.csv'
+    example_name = 'Example_3_7_3.csv'
 
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     default_csv = os.path.join(base_dir, 'data', 'examples', example_name)
@@ -66,8 +66,9 @@ if __name__ == '__main__':  # pragma: no cover
     # todo 默认簇名和 BBA 名称，可根据簇的情况修改。
     # 测试用，预设簇及加入顺序（从前到后就是加入顺序）
     default_clusters_elements_list = {
-        "Clus1": ["m1", "m2", "m5"],
-        "Clus2": ["m3", "m4"],
+        "Clus1": ["m8"],
+        "Clus2": ["m16", "m15"],
+        "Clus3": ["m1", "m2"],
     }
 
     try:

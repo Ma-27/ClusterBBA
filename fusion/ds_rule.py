@@ -66,7 +66,7 @@ def ds_combine(m1: BBA, m2: BBA) -> BBA:
         m(A) = [∑_{B ∩ C = A} m1(B) · m2(C)] / (1 - K)
         K    = ∑_{B ∩ C = ∅} m1(B) · m2(C)
 
-    当 ``1 - K ≈ 0``（完全冲突）时抛出 ``ValueError``。
+    当 ``1 - K ≈ 0``（完全冲突）或 ``K > 1``（异常冲突）时抛出 ``ValueError``。
     """
     new_mass: Dict[FrozenSet[str], float] = {}
 
@@ -77,6 +77,8 @@ def ds_combine(m1: BBA, m2: BBA) -> BBA:
                 new_mass[inter] = new_mass.get(inter, 0.0) + p * q
 
     K = conflict_coefficient(m1, m2)
+    if K > 1:
+        raise ValueError("DS 组合失败: 冲突系数 K 大于 1")
 
     denom = 1.0 - K
     if denom <= EPS:

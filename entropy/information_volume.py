@@ -144,14 +144,14 @@ if __name__ == "__main__":
     results: List[Tuple[str, float]] = []
     curves: Dict[str, List[float]] = {}
     print("----- Information Volume 结果 -----")
-    for name, bba in bbas:
+    for bba in bbas:
         vol, curve = information_volume(bba, eps, return_curve=True)
-        print(f"\n{name}:")
+        print(f"\n{bba.name}:")
         for i, h in enumerate(curve, start=1):
             print(f"  i={i:<2d} Hi(m)={h:.6f}")
         print(f"  >>> HIV-mass(m) = {vol:.6f}")
-        results.append((name, round(vol, 6)))
-        curves[name] = curve
+        results.append((bba.name, round(vol, 6)))
+        curves[bba.name] = curve
 
     # 保存结果
     out_dir = os.path.join(base_dir, "..", "experiments_result")

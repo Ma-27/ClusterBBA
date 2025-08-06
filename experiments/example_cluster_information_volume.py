@@ -33,10 +33,10 @@ def dynamic_clustering(csv_path: str) -> MultiClusters:
     # 解析出所有 BBA
     bbas, _ = load_bbas(df)
     mc = MultiClusters()
-    for name, bba in bbas:
+    for bba in bbas:
         # 每轮将新的 BBA 加入并输出簇信息
-        print(f"------------------------------ Round: {name} ------------------------------")
-        mc.add_bba_by_reward(name, bba)
+        print(f"------------------------------ Round: {bba.name} ------------------------------")
+        mc.add_bba_by_reward(bba)
         mc.print_all_info()
     return mc
 

@@ -8,7 +8,7 @@ behaviour of the function
 
 .. math::
 
-    h(m) = \frac{1}{1 + \\exp\bigl(-(m - \delta)/\varepsilon\bigr)}.
+    h(m) = \frac{1}{1 + \\exp\bigl(-(m - \\delta)/\varepsilon\bigr)}.
 """
 
 from __future__ import annotations
