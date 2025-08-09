@@ -30,6 +30,7 @@ from utility.formula_labels import (
     LABEL_RB_DIV,
     LABEL_K,
     LABEL_ALPHA,
+    LABEL_ALPHA_TO_ONE,
 )
 from utility.plot_style import apply_style
 from utility.plot_utils import highlight_overlapping_lines, savefig
@@ -79,7 +80,7 @@ def plot_curves(df: pd.DataFrame, out_path: str) -> None:
     ax.set_xlabel(LABEL_ALPHA)
     ax.set_ylabel("Value")
     ax.legend()
-    ax.set_title("Example 1.2 Extreme Conflict")
+    ax.set_title(f"Zoomed-in Extreme Conflict Near {LABEL_ALPHA_TO_ONE}")
     highlight_overlapping_lines(ax)
     savefig(fig, out_path)
 
