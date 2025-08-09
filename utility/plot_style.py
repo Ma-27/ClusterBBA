@@ -52,8 +52,8 @@ def apply_style() -> None:
         'figure.dpi': 800,
         'savefig.dpi': 800,
 
-        # 颜色和线条
-        'font.family': 'serif',
+        # 字体、颜色和线条
+        'font.family': 'Times New Roman',
         'font.serif': ['Times New Roman'],
         'font.size': 5,
         'axes.titlesize': 8,
@@ -61,6 +61,10 @@ def apply_style() -> None:
         'xtick.labelsize': 8,
         'ytick.labelsize': 8,
         'legend.fontsize': 6,
+        'mathtext.fontset': 'custom',
+        'mathtext.rm': 'Times New Roman',
+        'mathtext.it': 'Times New Roman:italic',
+        'mathtext.bf': 'Times New Roman:bold',
 
         # 线条、标记与颜色
         'lines.linewidth': 0.6,
