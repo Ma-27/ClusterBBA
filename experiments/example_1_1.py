@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """Example 1.1 RD_CCJS 簇冲突实验
 ===============================
-根据 `研究思路构建` 中对簇-簇冲突的定义，
-本脚本在两条随 α 变化的 BBA 之间计算 `RD_CCJS`、`BJS`、`B` 与 `RB` 散度，
-观察簇间冲突随 α 的变化情况，并与 Dempster 冲突系数对比。
+根据 对簇-簇冲突的定义，本脚本在两条随 α 变化的 BBA 之间计算 `RD_CCJS`、`BJS`、`B` 与 `RB` 散度，观察簇间冲突随 α 的变化情况，并与 Dempster 冲突系数对比。
 """
 
 from __future__ import annotations
@@ -82,7 +80,7 @@ def plot_curves(df: pd.DataFrame, out_path: str) -> None:
     ax.set_xlabel(LABEL_ALPHA)
     ax.set_ylabel("Value")
     ax.legend()
-    ax.set_title("Example 1.1 Cluster Conflict")
+    ax.set_title(f"Symmetric Conflict with Varying {LABEL_ALPHA}")
     highlight_overlapping_lines(ax)
     savefig(fig, out_path)
 

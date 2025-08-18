@@ -12,11 +12,11 @@ __all__ = [
     "LABEL_D_INTRA",
     "LABEL_I",
     "LABEL_HI_M",
-
+    "LABEL_ALPHA_TO_ONE",
 ]
 
 # 主要散度及度量标签
-LABEL_RD_CCJS = r"$RD_{CCJS}$"
+LABEL_RD_CCJS = r"$D_{CC}$"
 LABEL_BJS = r"$BJS$"
 LABEL_B_DIV = r"$B$"
 LABEL_RB_DIV = r"$RB$"
@@ -26,3 +26,4 @@ LABEL_DENG_ENTROPY = r"$E_{d}$"
 LABEL_D_INTRA = r"$D_{intra}$"
 LABEL_I = r"$i$"
 LABEL_HI_M = r"$H_i(m)$"
+LABEL_ALPHA_TO_ONE = r"$\alpha \to 1$"

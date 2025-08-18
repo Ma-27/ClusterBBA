@@ -86,9 +86,9 @@ def plot_compare_curve(df: pd.DataFrame, out_path: str) -> None:
     ax.plot(df["alpha"], df["B_div"], label=LABEL_B_DIV)
     ax.plot(df["alpha"], df["RB_div"], label=LABEL_RB_DIV)
     ax.set_xlabel(LABEL_ALPHA)
-    ax.set_ylabel("Distance")
+    ax.set_ylabel("Value")
     ax.legend()
-    ax.set_title(f"Compare {LABEL_RD_CCJS} with Other Divergences")
+    ax.set_title(f"Asymmetric Conflict with Varying {LABEL_ALPHA}")
     highlight_overlapping_lines(ax)
     savefig(fig, out_path)
 
