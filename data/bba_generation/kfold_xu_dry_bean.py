@@ -2,7 +2,7 @@
 """Dry Bean 数据集 K 折交叉验证版 BBA 生成器
 =======================================
 
-本脚本基于 :mod:`xu_dry_bean` 中实现的生成流程, 对 ``Dry Bean`` 数据集进行 ``K`` 折交叉验证 (默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和正态分布模型, 按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至 ``kfold_xu_bba_dry_bean.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统一填写 ``unknown``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
+基于 :mod:`xu_dry_bean` 的实现，将 ``Dry Bean`` 数据集划分为 ``K`` 折(默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个 ``test`` 折上顺时针取下一折作为 ``validation``，其余三折用于训练模型。随后分别对 ``validation`` 与``test`` 样本生成 BBA，保存至 ``kfold_xu_val_bba_dry_bean.csv`` 与``kfold_xu_bba_dry_bean.csv``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 
@@ -34,11 +35,13 @@ from data.bba_generation.xu_dry_bean import (
 )
 
 # 输出 CSV 文件保存到 data/bba_generation 同级目录
-CSV_PATH = Path(__file__).resolve().parents[1] / "kfold_xu_bba_dry_bean.csv"
+CSV_PATH_TEST = Path(__file__).resolve().parents[1] / "kfold_xu_bba_dry_bean.csv"
+CSV_PATH_VAL = Path(__file__).resolve().parents[1] / "kfold_xu_val_bba_dry_bean.csv"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="生成 Dry Bean 数据集 K 折交叉验证版 BBA")
+        description="生成 Dry Bean 数据集 K 折交叉验证版 BBA"
+    )
     parser.add_argument(
         "--random_state",
         type=int,
@@ -52,26 +55,48 @@ if __name__ == "__main__":
     n_class = len(class_names)
     n_attr = len(attr_names)
 
-    # 创建分层 K 折迭代器, 保证各折类别分布一致 todo 这个种子对最后的结果影响蛮大的...
+    # 创建分层 K 折迭代器, 保证各折类别分布一致
     skf = StratifiedKFold(
-        n_splits=K_FOLD_SPLITS, shuffle=True, random_state=args.random_state)
-    # 每个折生成的 BBA DataFrame 将存入此列表, 最后再合并
-    fold_frames = []
+        n_splits=K_FOLD_SPLITS, shuffle=True, random_state=args.random_state
+    )
+    # skf.split 返回 (train_idx, test_idx); 此处仅保存每个折作为测试集时的索引列表
+    fold_indices = [test_idx for _, test_idx in skf.split(X_all, y_all)]
 
-    for fold, (train_idx, test_idx) in enumerate(skf.split(X_all, y_all)):
-        # ---------- Step-1: 按当前折划分训练/测试集 ----------
-        X_tr = X_all[train_idx].copy()
-        y_tr = y_all[train_idx].copy()
-        X_te = X_all[test_idx].copy()
-        y_te = y_all[test_idx].copy()
+    # 每个折生成的 BBA DataFrame 将存入列表, 最后再合并
+    val_frames: list[pd.DataFrame] = []
+    test_frames: list[pd.DataFrame] = []
+
+    attr_order = {attr: i for i, attr in enumerate(attr_names)}
+
+    for test_fold in range(K_FOLD_SPLITS):
+        # 当前循环的 test_fold 作为测试集，下一折 val_fold 用作验证集
+        val_fold = (test_fold + 1) % K_FOLD_SPLITS
+        train_folds = [
+            f for f in range(K_FOLD_SPLITS) if f not in {test_fold, val_fold}
+        ]
+
+        # 根据折号拼接得到训练、验证、测试集的样本索引
+        train_idx = np.concatenate([fold_indices[f] for f in train_folds])
+        val_idx = fold_indices[val_fold]
+        test_idx = fold_indices[test_fold]
+
+        # ---------- Step-1: 划分训练/验证/测试集 ----------
+        X_tr = X_all[train_idx].copy()  # 训练集特征
+        y_tr = y_all[train_idx].copy()  # 训练集标签
+        X_val = X_all[val_idx].copy()  # 验证集特征
+        y_val = y_all[val_idx].copy()  # 验证集标签
+        X_te = X_all[test_idx].copy()  # 测试集特征
+        y_te = y_all[test_idx].copy()  # 测试集标签
 
         # 包装成自定义 Dataset，便于后续抽样访问
         train_dataset = DryBeanDataset(X_tr, y_tr, attr_names, class_names)
+        val_dataset = DryBeanDataset(X_val, y_val, attr_names, class_names)
         test_dataset = DryBeanDataset(X_te, y_te, attr_names, class_names)
 
         # Dry Bean 属性均为正，仍以训练集最小值校正，确保 Box-Cox 有效
-        offsets = compute_offsets(X_tr)
+        offsets = compute_offsets(X_tr)  # 计算各属性的平移量
         X_tr += offsets
+        X_val += offsets
         X_te += offsets
 
         (
@@ -83,9 +108,53 @@ if __name__ == "__main__":
             _,
         ) = fit_parameters(X_tr, y_tr, n_class, n_attr)
 
-        # ---------- Step-5: 调用原函数生成 BBA DataFrame ----------
-        dataset_order = list(train_idx) + list(test_idx)
-        df_fold = generate_bba_dataframe(
+        # ---------- Step-5: 调用原函数生成 BBA DataFrame（验证集 BBA） ----------
+        order_val = list(train_idx) + list(val_idx)
+        df_val = generate_bba_dataframe(
+            X_all,
+            y_all,
+            X_tr,
+            y_tr,
+            train_dataset,
+            val_dataset,
+            attr_names,
+            class_names,
+            full_class_names,
+            transform_flags,
+            lambdas,
+            mus,
+            sigmas,
+            mean_vectors,
+            sample_indices=order_val,
+            offsets=offsets,
+            decimals=4,
+        )
+        df_val = df_val[df_val["sample_index"].isin(val_idx + 1)].copy()
+        df_val["dataset_split"] = "validation"
+        df_val["fold"] = val_fold
+
+        cols = df_val.columns.tolist()
+        meta_cols = [
+            "sample_index",
+            "ground_truth",
+            "dataset_split",
+            "fold",
+            "attribute",
+            "attribute_data",
+        ]
+        rest_cols = [c for c in cols if c not in meta_cols]
+        df_val = df_val[meta_cols + rest_cols]
+
+        df_val["_attr_order"] = df_val["attribute"].map(attr_order)
+        df_val = df_val.sort_values(by=["sample_index", "_attr_order"]).reset_index(
+            drop=True
+        )
+        df_val = df_val.drop(columns="_attr_order")
+        val_frames.append(df_val)
+
+        # ---------- 测试集 BBA ----------
+        order_test = list(train_idx) + list(test_idx)
+        df_te = generate_bba_dataframe(
             X_all,
             y_all,
             X_tr,
@@ -100,48 +169,53 @@ if __name__ == "__main__":
             mus,
             sigmas,
             mean_vectors,
-            sample_indices=dataset_order,
+            sample_indices=order_test,
             offsets=offsets,
             decimals=4,
         )
+        df_te = df_te[df_te["sample_index"].isin(test_idx + 1)].copy()
+        df_te["dataset_split"] = "test"
+        df_te["fold"] = test_fold
 
-        # 仅保留当前折的测试样本
-        df_fold = df_fold[df_fold["sample_index"].isin(test_idx + 1)].copy()
-        df_fold["dataset_split"] = "unknown"
-        # 只保留测试样本, 训练样本仅用于建立模型
-        df_fold["fold"] = fold
-
-        # 调整列顺序: dataset_split 之后插入 fold
-        cols = df_fold.columns.tolist()
-        meta_cols = ["sample_index", "ground_truth", "dataset_split", "fold", "attribute", "attribute_data"]
+        cols = df_te.columns.tolist()
         rest_cols = [c for c in cols if c not in meta_cols]
-        df_fold = df_fold[meta_cols + rest_cols]
+        df_te = df_te[meta_cols + rest_cols]
 
-        # 按 sample_index、属性顺序排序
-        attr_order = {attr: i for i, attr in enumerate(attr_names)}
-        df_fold["_attr_order"] = df_fold["attribute"].map(attr_order)
-        df_fold = df_fold.sort_values(by=["sample_index", "_attr_order"]).reset_index(drop=True)
-        df_fold = df_fold.drop(columns="_attr_order")
-        fold_frames.append(df_fold)
+        df_te["_attr_order"] = df_te["attribute"].map(attr_order)
+        df_te = df_te.sort_values(by=["sample_index", "_attr_order"]).reset_index(
+            drop=True
+        )
+        df_te = df_te.drop(columns="_attr_order")
+        test_frames.append(df_te)
 
     # ---------- Step-6: 合并并写入 CSV ----------
-    df_all = pd.concat(fold_frames, ignore_index=True)
-    # ---------- Step-6.1: 验证索引与行数 ----------
-    counts = df_all["sample_index"].value_counts()
+    df_val_all = pd.concat(val_frames, ignore_index=True)
+    counts = df_val_all["sample_index"].value_counts()
     if len(counts) != len(X_all) or not (counts == n_attr).all():
-        raise AssertionError("每个样本应恰好出现一次且拥有完整属性")
-    # 按 sample_index、属性顺序排序
-    attr_order = {attr: i for i, attr in enumerate(attr_names)}
-    df_all["_attr_order"] = df_all["attribute"].map(attr_order)
-    df_all = df_all.sort_values(by=["sample_index", "_attr_order"]).reset_index(drop=True)
-    df_all = df_all.drop(columns="_attr_order")
+        raise AssertionError("验证集: 每个样本应恰好出现一次且拥有完整属性")
+    df_val_all["_attr_order"] = df_val_all["attribute"].map(attr_order)
+    df_val_all = df_val_all.sort_values(by=["sample_index", "_attr_order"]).reset_index(
+        drop=True
+    )
+    df_val_all = df_val_all.drop(columns="_attr_order")
+    df_val_all = df_val_all[meta_cols + rest_cols]
+    ensure_dir(CSV_PATH_VAL)
+    df_val_all.to_csv(CSV_PATH_VAL, index=False, encoding="utf-8")
 
-    cols = df_all.columns.tolist()
-    meta_cols = ["sample_index", "ground_truth", "dataset_split", "fold", "attribute", "attribute_data"]
-    rest_cols = [c for c in cols if c not in meta_cols]
-    df_all = df_all[meta_cols + rest_cols]
-    ensure_dir(CSV_PATH)
-    df_all.to_csv(CSV_PATH, index=False, encoding="utf-8")
+    df_test_all = pd.concat(test_frames, ignore_index=True)
+    counts = df_test_all["sample_index"].value_counts()
+    if len(counts) != len(X_all) or not (counts == n_attr).all():
+        raise AssertionError("测试集: 每个样本应恰好出现一次且拥有完整属性")
+    df_test_all["_attr_order"] = df_test_all["attribute"].map(attr_order)
+    df_test_all = df_test_all.sort_values(by=["sample_index", "_attr_order"]).reset_index(
+        drop=True
+    )
+    df_test_all = df_test_all.drop(columns="_attr_order")
+    df_test_all = df_test_all[meta_cols + rest_cols]
+    ensure_dir(CSV_PATH_TEST)
+    df_test_all.to_csv(CSV_PATH_TEST, index=False, encoding="utf-8")
+
+    print(f"\n已保存 {K_FOLD_SPLITS} 折验证 BBA 至 {CSV_PATH_VAL.resolve()}")
     print(
-        f"\n已保存 {K_FOLD_SPLITS} 折 BBA 至 {CSV_PATH.resolve()}  (共 {len(df_all)} 行)\n"
+        f"已保存 {K_FOLD_SPLITS} 折测试 BBA 至 {CSV_PATH_TEST.resolve()}  (共 {len(df_test_all)} 行)\n"
     )

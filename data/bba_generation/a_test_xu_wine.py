@@ -29,7 +29,7 @@ if str(BASE_DIR) not in sys.path:
 
 # 依赖本项目内现成工具函数 / 模块
 from data.bba_generation.kfold_xu_wine import (
-    CSV_PATH as KFOLD_CSV_PATH,
+    CSV_PATH_TEST as KFOLD_CSV_PATH,
     load_wine_data,
 )
 from data.bba_generation.xu_wine import CSV_PATH as BASIC_CSV_PATH

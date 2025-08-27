@@ -2,7 +2,7 @@
 """基于 kfold 的 ``lambda``、``mu`` 网格调参
 =====================================
 
-遍历每个折测试集的候选 ``lambda`` 与 ``mu`` 组合，选择分类准确率最高的一组参数。若出现并列，会在 ``alpha`` 取 ``0.5``、``1.0``、``1.5`` 时计算平均准确率以打破平局。结果按折号保存到 ``experiments_result`` 目录。
+按 ``1:1:3`` 的比例将折集划分为 ``测试``、``验证``、``训练``： 每次以一个折作为测试集，顺时针下一个折作为验证集，其余三折隐式用于训练 BBA 生成模型。遍历验证集上的候选 ``lambda`` 与 ``mu`` 组合，选择分类准确率最高的一组参数。若出现并列，会在 ``alpha`` 取 ``0.5``、``1.0``、``1.5`` 时计算平均准确率以打破平局。结果按测试折号保存到 ``experiments_result`` 目录。
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def collect_accuracy(samples: List[Tuple[int, List, str, int]], lambda_val: floa
     """在给定样本上计算分类准确率."""
 
     if alpha is not None:
-        config.ALPHA = alpha
+        config.ALPHA = alpha  # 动态调整 ALPHA 以考察其影响
         try:
             my_rule.ALPHA = alpha
         except Exception:
@@ -82,7 +82,7 @@ def collect_accuracy(samples: List[Tuple[int, List, str, int]], lambda_val: floa
     apply_hyperparams(lambda_val, mu_val)
 
     # 去掉 fold 信息以复用现有评估函数
-    simple_samples = [(idx, bbas, gt) for idx, bbas, gt, _ in samples]
+    simple_samples = [(idx, bbas, gt) for idx, bbas, gt, _ in samples]  # (样本索引, BBA 序列, 真值)
 
     return float(
         eval_func(
@@ -100,18 +100,18 @@ def search_fold(samples: List[Tuple[int, List, str, int]], params: Iterable[Tupl
     """在单个折上搜索使准确率最高的 ``lambda``、``mu``."""
 
     best_pairs: List[Tuple[float, float]] = []
-    best_acc = -1.0
+    best_acc = -1.0  # 记录目前发现的最高准确率
 
     # 进度条显示当前尝试的超参组
     pbar = tqdm(list(params), desc="搜索进度", ncols=PROGRESS_NCOLS)
     for lam, mu in pbar:
-        acc = collect_accuracy(samples, lam, mu, eval_func)
-        pbar.set_postfix({"lambda": lam, "mu": mu, "acc": f"{acc:.4f}"})
+        acc = collect_accuracy(samples, lam, mu, eval_func)  # 评估当前参数组
+        pbar.set_postfix({"lambda": lam, "mu": mu, "acc": f"{acc:.4f}"})  # 动态显示结果
         if acc > best_acc + 1e-6:
             best_acc = acc
-            best_pairs = [(lam, mu)]
+            best_pairs = [(lam, mu)]  # 若优于历史最优, 则重置候选集合
         elif abs(acc - best_acc) <= 1e-6:
-            best_pairs.append((lam, mu))
+            best_pairs.append((lam, mu))  # 准确率相同则并列保留
 
     pbar.close()
 
@@ -120,12 +120,12 @@ def search_fold(samples: List[Tuple[int, List, str, int]], params: Iterable[Tupl
 
     # 平局时在多个 alpha 上比较平均准确率，并展示进度
     alphas = [0.5, 1.0, 1.5]
-    best_pair = best_pairs[0]
-    best_avg = -1.0
+    best_pair = best_pairs[0]  # 默认取列表首项
+    best_avg = -1.0  # 当前最佳的平均准确率
     tie_pbar = tqdm(best_pairs, desc="平局处理", ncols=PROGRESS_NCOLS)
     for lam, mu in tie_pbar:
         scores = [collect_accuracy(samples, lam, mu, eval_func, alpha=a) for a in alphas]
-        avg = sum(scores) / len(scores)
+        avg = sum(scores) / len(scores)  # 计算在多个 alpha 下的平均准确率
         tie_pbar.set_postfix({"lambda": lam, "mu": mu, "avg": f"{avg:.4f}"})
         if avg > best_avg + 1e-6:
             best_avg = avg
@@ -144,7 +144,7 @@ def tune_kfold_params(dataset: str, *, csv_path: str | Path | None = None, debug
     dataset : str
         数据集名称，如 ``"iris"``、``"seeds"`` 等。
     csv_path : str or Path, optional
-        数据集 CSV 路径，默认为 ``data/kfold_xu_bba_<dataset>.csv``。
+        数据集 CSV 路径，默认为 ``data/kfold_xu_val_bba_<dataset>.csv``。
     debug : bool, optional
         调试模式，仅测试前两组参数。
     fold : int, optional
@@ -152,10 +152,10 @@ def tune_kfold_params(dataset: str, *, csv_path: str | Path | None = None, debug
     """
 
     if csv_path is None:
-        csv_path = Path(__file__).resolve().parents[1] / "data" / f"kfold_xu_bba_{dataset}.csv"
+        csv_path = Path(__file__).resolve().parents[1] / "data" / f"kfold_xu_val_bba_{dataset}.csv"
     csv_path = Path(csv_path)
 
-    samples = load_application_dataset_cv(csv_path=csv_path, debug=False)
+    samples = load_application_dataset_cv(csv_path=csv_path, debug=False)  # 读取按折划分的 BBA
 
     if dataset not in EVAL_FUNCS:
         raise ValueError(f"未知的数据集: {dataset}")
@@ -169,24 +169,33 @@ def tune_kfold_params(dataset: str, *, csv_path: str | Path | None = None, debug
     ]
 
     # len(candidates) = 27  -> 27**2 = 729 pairs
-    pairs = list(itertools.product(candidates, candidates))
+    pairs = list(itertools.product(candidates, candidates))  # 枚举所有可能的参数对
     if debug:
         pairs = pairs[:2]
 
-    folds = sorted(set(f for *_, f in samples))
+    # 所有出现的折号，默认按 0..K-1 排序
+    all_folds = sorted(set(f for *_, f in samples))  # 数据集中出现的所有折号
+    n_folds = len(all_folds)
     if fold is not None:
-        if fold not in folds:
-            raise ValueError(f"fold={fold} 超出范围 {folds}")
-        folds = [fold]
-    results: List[Dict[str, float]] = []
+        if fold not in all_folds:
+            raise ValueError(f"fold={fold} 超出范围 {all_folds}")
+        test_folds = [fold]  # 仅评估指定折
+    else:
+        test_folds = all_folds
+
+    results: List[Dict[str, float]] = []  # 保存每个测试折对应的最优参数
     out_path = Path(__file__).resolve().parents[1] / "experiments_result" / f"kfold_best_params_{dataset}.csv"
 
-    for fold in folds:
-        fold_samples = [s for s in samples if s[3] == fold]
-        lam_best, mu_best = search_fold(fold_samples, pairs, eval_func)
-        results.append({"fold": fold, "lambda": lam_best, "mu": mu_best})
+    for test_fold in test_folds:
+        # 按 1:1:3 的比例选择验证折，默认取顺时针下一个折作为验证折
+        val_fold = (test_fold + 1) % n_folds
+        val_samples = [s for s in samples if s[3] == val_fold]  # 提取当前验证折的数据
+        lam_best, mu_best = search_fold(val_samples, pairs, eval_func)  # 搜索最佳参数
+        results.append({"fold": test_fold, "lambda": lam_best, "mu": mu_best})
         pd.DataFrame(results).to_csv(out_path, index=False, encoding="utf-8")
-        print(f"Fold {fold}: lambda={lam_best}, mu={mu_best}")
+        print(
+            f"Test Fold {test_fold} (Val Fold {val_fold}): lambda={lam_best}, mu={mu_best}"
+        )
 
     return results
 
@@ -199,8 +208,8 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument(
         "--dataset",
         type=str,
-        default="iris",
-        help="数据集名称, 对应 kfold_xu_bba_<dataset>.csv",
+        default="wine",
+        help="数据集名称, 对应 kfold_xu_val_bba_<dataset>.csv",
     )
 
     parser.add_argument(
