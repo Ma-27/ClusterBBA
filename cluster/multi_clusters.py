@@ -15,7 +15,7 @@ import numpy as np
 # 依赖本项目内现成工具函数 / 模块
 from cluster.one_cluster import Cluster, initialize_empty_cluster  # type: ignore
 from config import (
-    THRESHOLD_BJS,
+    threshold_bjs,
     SPLIT_TIMES,
     INTRA_EPS,
     LAMBDA as DEFAULT_LAMBDA,
@@ -277,10 +277,12 @@ class MultiClusters:
             if len(only_cluster.get_bbas()) == 1:
                 old_bba = only_cluster.get_bbas()[0]
                 div = bjs_metric(old_bba, bba)
+                # 根据 Frame of Discernment 动态计算每个问题的二分阈值
+                thresh = threshold_bjs(bba.theta_size)
                 if self._debug:
                     print(
-                        f"The divergence between {old_bba.name} and {bba.name} is {div:.4f}. The current threshold is {THRESHOLD_BJS:.4f}.")
-                if div <= THRESHOLD_BJS:
+                        f"The divergence between {old_bba.name} and {bba.name} is {div:.4f}. The current threshold is {thresh:.4f}.")
+                if div <= thresh:
                     only_cluster.add_bba(bba)
                     return only_cluster.name
                 target_name = f"Clus{self._next_id}"
