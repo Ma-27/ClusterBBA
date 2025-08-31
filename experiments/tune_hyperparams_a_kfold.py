@@ -2,7 +2,7 @@
 """基于 kfold 的 ``lambda``、``mu`` 网格调参
 =====================================
 
-按 ``1:1:3`` 的比例将折集划分为 ``测试``、``验证``、``训练``： 每次以一个折作为测试集，顺时针下一个折作为验证集，其余三折隐式用于训练 BBA 生成模型。遍历验证集上的候选 ``lambda`` 与 ``mu`` 组合，选择分类准确率最高的一组参数。若出现并列，会在 ``alpha`` 取 ``0.5``、``1.0``、``1.5`` 时计算平均准确率以打破平局。结果按测试折号保存到 ``experiments_result`` 目录。
+按 ``1:1:3`` 的比例将折集划分为 ``测试``、``验证``、``训练``： 每次以一个折作为测试集，顺时针下一个折作为验证集，其余三折隐式用于训练 BBA 生成模型。遍历验证集上的候选 ``lambda`` 与 ``mu`` 组合，选择分类准确率最高的一组参数。若出现并列，则选择距离网格中心 ``(1,1)`` 最近的一组超参数。结果按测试折号保存到 ``experiments_result`` 目录。
 """
 
 from __future__ import annotations
@@ -118,17 +118,18 @@ def search_fold(samples: List[Tuple[int, List, str, int]], params: Iterable[Tupl
     if len(best_pairs) == 1:
         return best_pairs[0]
 
-    # 平局时在多个 alpha 上比较平均准确率，并展示进度
-    alphas = [0.5, 1.0, 1.5]
-    best_pair = best_pairs[0]  # 默认取列表首项
-    best_avg = -1.0  # 当前最佳的平均准确率
-    tie_pbar = tqdm(best_pairs, desc="平局处理", ncols=PROGRESS_NCOLS)
+    # 平局时选取距离网格中心 (1,1) 最近的参数对
+    center = (1.0, 1.0)  # 预设的网格中心
+    best_pair = best_pairs[0]  # 当前最优候选的占位符
+    min_dist = float("inf")  # 已发现的最小平方距离
+    tie_pbar = tqdm(best_pairs, desc="平局处理", ncols=PROGRESS_NCOLS)  # 遍历并列候选
     for lam, mu in tie_pbar:
-        scores = [collect_accuracy(samples, lam, mu, eval_func, alpha=a) for a in alphas]
-        avg = sum(scores) / len(scores)  # 计算在多个 alpha 下的平均准确率
-        tie_pbar.set_postfix({"lambda": lam, "mu": mu, "avg": f"{avg:.4f}"})
-        if avg > best_avg + 1e-6:
-            best_avg = avg
+        # 使用平方距离避免计算平方根，衡量 (lam, mu) 与中心点的远近
+        dist = (lam - center[0]) ** 2 + (mu - center[1]) ** 2
+        tie_pbar.set_postfix({"lambda": lam, "mu": mu, "dist": f"{dist:.4f}"})
+        # 距离更小则更新当前最佳组合
+        if dist < min_dist - 1e-12:
+            min_dist = dist
             best_pair = (lam, mu)
     tie_pbar.close()
 
@@ -208,7 +209,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument(
         "--dataset",
         type=str,
-        default="wine",
+        default="iris",
         help="数据集名称, 对应 kfold_xu_val_bba_<dataset>.csv",
     )
 
