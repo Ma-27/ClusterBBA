@@ -9,4 +9,5 @@ torch==2.7.1
 tqdm==4.67.1
 tabulate==0.9.0
 requests==2.32.4
+optuna==4.5.0
 

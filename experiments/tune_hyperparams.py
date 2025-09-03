@@ -41,9 +41,7 @@ def apply_hyperparams(lambda_val: float, mu_val: float) -> None:
     my_rule.MU = mu_val
 
 
-def search(
-        params: Iterable[Tuple[float, float]], *, shuffle_times: int
-) -> List[Tuple[float, float, float]]:
+def search(params: Iterable[Tuple[float, float]], *, shuffle_times: int) -> List[Tuple[float, float, float]]:
     """遍历给定参数组合, 返回按准确率降序排列的 ``(lambda, mu, acc)`` 列表"""
 
     results: List[Tuple[float, float, float]] = []
@@ -71,7 +69,9 @@ def search(
 
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(description="搜索最佳 lambda、mu 组合")
+    # 指定是否运行在调试模式下
     parser.add_argument("--debug", action="store_true", help="仅测试前两组参数")
+    # 重复运行次数
     parser.add_argument("--times", type=int, default=None, help="每组参数的评估重复次数")
     args = parser.parse_args()
 

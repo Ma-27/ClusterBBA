@@ -85,6 +85,7 @@ def search(params: Iterable[Tuple[float, float]]) -> List[Tuple[float, float, fl
 
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(description="搜索 Seeds 数据集上的最佳 lambda、mu")
+    # 指定是否运行在调试模式下
     parser.add_argument("--debug", action="store_true", help="仅测试前两组参数")
     args = parser.parse_args()
 

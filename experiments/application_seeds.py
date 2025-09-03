@@ -89,38 +89,16 @@ def evaluate_accuracy(*, samples: List[tuple[int, List[BBA], str]] | None = None
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="在 Seeds 数据集上进行证据融合分类"
-    )
-
-    parser.add_argument(
-        "--full",
-        action="store_true",
-        help="评估全部 210 条样本",
-    )
-
-    # fixme 指定融合规则：从 METHODS 字典中取出对应的函数和名称
-    parser.add_argument(
-        "--method",
-        type=str,
-        choices=list(METHODS.keys()),
-        default="Proposed",
-        help="选择融合规则，此处可以任意更改",
-    )
-
-    parser.add_argument(
-        "--kfold",
-        action="store_true",
-        help="Proposed 方法按折使用最优超参评估",
-    )
-
-    parser.add_argument(
-        "--alpha",
-        type=float,
-        default=None,
-        help="覆盖 config.py 中的 ALPHA 超参",
-    )
-
+    parser = argparse.ArgumentParser(description="在 Seeds 数据集上进行证据融合分类")
+    # 指定是否运行在调试模式下
+    parser.add_argument("--debug", action="store_true", help="仅评估前 2 条样本", )
+    # todo 评估不同的融合规则
+    parser.add_argument("--method", type=str, choices=list(METHODS.keys()), default="Proposed",
+                        help="选择融合规则，此处可以任意更改", )
+    # todo 指定是否启用 K 折交叉验证模式
+    parser.add_argument("--kfold", action="store_true", help="Proposed 方法按折使用最优超参评估", )
+    # 使用特定的 alpha 超参数
+    parser.add_argument("--alpha", type=float, default=None, help="覆盖 config.py 中的 ALPHA 超参", )
     args = parser.parse_args()
 
     # 若指定 alpha, 则覆盖 config.py 中的默认值
@@ -133,9 +111,8 @@ if __name__ == "__main__":
         except Exception:  # pragma: no cover - 导入失败时忽略
             pass
 
-    # fixme 如果 --full 参数未指定，则仅评估前 2 条样本
-    # debug = not args.full
-    debug = args.full
+    # 启用调试模式时仅评估前 2 条样本
+    debug = args.debug
 
     csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_seeds.csv"
 
@@ -144,7 +121,7 @@ if __name__ == "__main__":
         params_path = (
                 Path(__file__).resolve().parents[1]
                 / "experiments_result"
-                / "kfold_best_params_seeds.csv"
+                / "best_params_kfold_seeds.csv"
         )
         if not params_path.exists():
             raise FileNotFoundError(f"缺少超参数文件: {params_path}")
