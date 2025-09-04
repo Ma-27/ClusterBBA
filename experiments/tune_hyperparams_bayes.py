@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""基于贝叶斯优化的 ``lambda``、``mu`` 超参调节
-=================================================
+"""基于贝叶斯优化的 ``lambda``、``mu`` (可选 ``alpha``) 超参调节
+====================================================================
 
-使用 Optuna 贝叶斯优化搜索 ``lambda`` 与 ``mu`` 组合, 以最大化分类准确率并减少搜索开销。既支持在 ``kfold`` 数据上逐折评估, 亦可在完整数据集上直接搜索。若出现并列, 依照固定的 ``alpha`` 序列重新评估并比较曲线稳定性来打破平局。
+使用 Optuna 的 TPE 采样器搜索 ``lambda`` 与 ``mu`` 组合, 以最大化分类准确率并减少搜索开销。既支持在 ``kfold`` 数据上逐折评估, 亦可在完整数据集上直接搜索。若启用 ``alpha`` 选项, 则 ``lambda``、``mu`` 与 ``alpha`` 会被同时优化。最终结果直接由 Optuna 的 ``best_params`` 决定, 不再额外处理平局情形。
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-import numpy as np
 import optuna
 from optuna.samplers import TPESampler
 from tqdm import tqdm
@@ -57,12 +56,6 @@ EVAL_FUNCS: Dict[str, Callable[..., float]] = {
     "glass": eval_glass,
     "wine": eval_wine,
 }
-
-ALPHA_SEQ = [
-    1 / 8, 1 / 7, 1 / 6, 1 / 5, 1 / 4, 1 / 3, 1 / 2, 1,
-    2, 3, 4, 5, 6, 7, 8,
-]
-_TIE_EPS = 1e-6
 
 
 # ---------------------------------------------------------------------------
@@ -110,21 +103,25 @@ def collect_accuracy(samples: List[Tuple[int, List, str, int]], lambda_val: floa
 # 搜索逻辑
 # ---------------------------------------------------------------------------
 
-def _objective(trial: optuna.Trial, samples: List[Tuple[int, List, str, int]],
-               eval_func: Callable[..., float], ) -> float:
-    """Optuna 目标函数: 采样 ``lambda`` 与 ``mu`` 并返回准确率."""
+def _objective(trial: optuna.Trial, samples: List[Tuple[int, List, str, int]], eval_func: Callable[..., float], *,
+               opt_alpha: bool = False, ) -> float:
+    """Optuna 目标函数: 采样 ``lambda``、``mu`` (及可选 ``alpha``) 并返回准确率."""
 
     # 在对数空间中随机采样 ``lambda`` 与 ``mu``，确保覆盖宽泛范围
     lam = trial.suggest_float("lambda", 0.001, 1000.0, log=True)
     mu = trial.suggest_float("mu", 0.001, 1000.0, log=True)
 
+    if opt_alpha:
+        alpha = trial.suggest_float("alpha", 1 / 8, 8.0, log=True)
+        return collect_accuracy(samples, lam, mu, eval_func, alpha=alpha)
+
     # 目标是最大化默认 ``alpha=1`` 下的准确率
     return collect_accuracy(samples, lam, mu, eval_func, alpha=1.0)
 
 
-def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[..., float], *, n_trials: int = 50, ) -> \
-        Tuple[float, float]:
-    """在单个折上使用贝叶斯优化搜索 ``lambda``、``mu``."""
+def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[..., float], *, n_trials: int = 50,
+                opt_alpha: bool = False, ) -> Tuple[float, float, Optional[float]]:
+    """在单个折上使用贝叶斯优化搜索 ``lambda``、``mu`` (及可选 ``alpha``)."""
 
     # --------- 初始化贝叶斯优化流程 --------- #
     sampler = TPESampler(seed=42)  # 使用 TPE 采样器, 结果可复现
@@ -134,78 +131,41 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
     # 回调函数: 每次 trial 完成后更新进度条显示当前结果
     def _callback(study: optuna.Study, trial: optuna.Trial) -> None:  # pragma: no cover
         pbar.update(1)
-        pbar.set_postfix({
+        postfix = {
             "lambda": trial.params.get("lambda", float("nan")),
             "mu": trial.params.get("mu", float("nan")),
             "acc": f"{trial.value:.4f}",
-        })
+        }
+        if opt_alpha:
+            postfix["alpha"] = trial.params.get("alpha", float("nan"))
+        pbar.set_postfix(postfix)
 
     # 运行贝叶斯优化迭代
     study.optimize(
-        lambda trial: _objective(trial, samples, eval_func),
+        lambda trial: _objective(trial, samples, eval_func, opt_alpha=opt_alpha),
         n_trials=n_trials,
         callbacks=[_callback],
     )
     pbar.close()
 
-    # --------- 挑选并列的最优解 --------- #
-    best_acc = study.best_value
-    candidates = [
-        (t.params["lambda"], t.params["mu"])
-        for t in study.trials
-        if abs(t.value - best_acc) <= _TIE_EPS
-    ]
-
-    # 若仅有一个候选, 直接返回
-    if len(candidates) == 1:
-        return candidates[0]
-
-    # --------- 依据固定 α 序列重新评估以打破平局 --------- #
-    tie_results = []
-    tie_pbar = tqdm(candidates, desc="平局处理", ncols=PROGRESS_NCOLS)
-    for lam, mu in tie_pbar:
-        # 对每个候选组合遍历给定的 α 序列, 记录对应的准确率曲线
-        scores = [
-            collect_accuracy(samples, lam, mu, eval_func, alpha=a) for a in ALPHA_SEQ
-        ]
-        tie_results.append((lam, mu, scores))
-        tie_pbar.set_postfix({"lambda": lam, "mu": mu, "best": f"{max(scores):.4f}"})
-    tie_pbar.close()
-
-    # 先比较各组合在 α 序列中取得的最高准确率
-    best_alpha = max(max(scores) for _, _, scores in tie_results)
-    candidates = [
-        (lam, mu, scores)
-        for lam, mu, scores in tie_results
-        if abs(max(scores) - best_alpha) <= _TIE_EPS
-    ]
-    if len(candidates) == 1:
-        lam, mu, _ = candidates[0]
-        return lam, mu
-
-    # 仍然平局时, 计算曲线的“平稳度”作为最终判据
-    final_scores = []
-    for lam, mu, scores in candidates:
-        arr = np.asarray(scores, dtype=float)
-        # 幅度越小且方差越大, 得分越低; 反之越高
-        score = (arr.max() - arr.min()) / (arr.std() + 1e-6)
-        final_scores.append((score, lam, mu))
-
-    final_scores.sort(reverse=True)
-    _, lam_best, mu_best = final_scores[0]
-    return lam_best, mu_best
+    # 直接返回 Optuna 选出的最佳参数组合
+    lam_best = study.best_params["lambda"]
+    mu_best = study.best_params["mu"]
+    alpha_best = study.best_params.get("alpha")
+    return lam_best, mu_best, alpha_best
 
 
 def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool = False, fold: Optional[int] = None,
-                n_trials: int = 50, kfold: bool = False, ) -> List[Dict[str, float]]:
-    """搜索并保存最优的 ``lambda``、``mu`` 组合.
+                n_trials: int = 50, kfold: bool = False, opt_alpha: bool = False, ) -> List[Dict[str, float]]:
+    """搜索并保存最优的 ``lambda``、``mu`` (及可选 ``alpha``) 组合.
 
     Parameters
     ----------
     dataset : str
         数据集名称.
     kfold : bool, optional
-        ``True`` 时按 kfold 分折评估, 否则在完整数据集上评估 (默认).
+        ``True`` 时按折号在验证集 ``bbavalset_<dataset>_fold<k>.csv`` 上逐折搜索,
+        否则在完整数据集上评估 (默认).
     """
 
     # --------- 准备数据与评估函数 --------- #
@@ -229,9 +189,11 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
         if debug:
             n_trials = min(2, n_trials)
         # 4. 调用核心搜索函数，在整个数据集上进行贝叶斯优化，找到最佳的 lambda 和 mu
-        lam_best, mu_best = search_fold(samples, eval_func, n_trials=n_trials)
+        lam_best, mu_best, alpha_best = search_fold(samples, eval_func, n_trials=n_trials, opt_alpha=opt_alpha)
         # 5. 将找到的最佳参数存入字典，并将结果四舍五入到小数点后 4 位
         result = {"lambda": round(lam_best, 4), "mu": round(mu_best, 4)}
+        if opt_alpha and alpha_best is not None:
+            result["alpha"] = round(alpha_best, 4)
         # 6. 构建结果文件的输出路径
         out_path = (
                 Path(__file__).resolve().parents[1]
@@ -239,16 +201,19 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
                 / f"bayes_best_params_full_{dataset}.csv"
         )
         pd.DataFrame([result]).to_csv(out_path, index=False, encoding="utf-8", float_format="%.4f")
-        print(f"Full: lambda={lam_best:.4f}, mu={mu_best:.4f}")
+        if opt_alpha and alpha_best is not None:
+            print(f"Full: lambda={lam_best:.4f}, mu={mu_best:.4f}, alpha={alpha_best:.4f}")
+        else:
+            print(f"Full: lambda={lam_best:.4f}, mu={mu_best:.4f}")
         return [result]
 
     # --------- 按 kfold 分折搜索 --------- #
 
-    # 1. 加载完整的、未分折的数据集
-    samples = load_application_dataset_cv(csv_path=csv_path, debug=False)
+    # 1. 加载交叉测试集, 仅用于确定可用的折号
+    samples_cv = load_application_dataset_cv(csv_path=csv_path, debug=False)
 
     # 所有存在的折号, 供后续遍历
-    folds = sorted(set(f for *_, f in samples))
+    folds = sorted(set(f for *_, f in samples_cv))
     # 检查是否指定了只运行某一单折
     if fold is not None:
         # 验证输入折号是否存在于数据集中
@@ -263,24 +228,42 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
 
     # 初始化一个空列表，用于存储每一折的最优参数结果
     results: List[Dict[str, float]] = []
-    # 构建结果输出路径
+
+    # 构建超参数保存路径
     out_path = (
             Path(__file__).resolve().parents[1]
             / "experiments_result"
             / f"bayes_best_params_kfold_{dataset}.csv"
     )
 
+    # 验证集所在目录
+    val_dir = (
+            Path(__file__).resolve().parents[1]
+            / "data"
+            / "bba_validation"
+            / f"kfold_xu_bbavalset_{dataset}"
+    )
+
     # 遍历需要处理的每一折 (folds 列表可能是全部折，也可能是用户指定的单折)
     for f in folds:
-        # 取出只属于当前折 `f` 的样本并搜索最优参数
-        fold_samples = [s for s in samples if s[3] == f]
-        # 调用 search_fold 函数，在当前折的样本数据上执行贝叶斯优化，找到最佳的 lambda 和 mu
-        lam_best, mu_best = search_fold(fold_samples, eval_func, n_trials=n_trials)
-        # 将当前折的结果（折号、最佳lambda、最佳mu）追加到 results 列表中，数值四舍五入到小数点后4位
-        results.append({"fold": f, "lambda": round(lam_best, 4), "mu": round(mu_best, 4)})
+        # 2. 加载当前折对应的验证集
+        val_csv = val_dir / f"bbavalset_{dataset}_fold{f}.csv"
+        val_samples_simple = load_application_dataset(csv_path=val_csv, debug=False)
+        # 3. 为复用 search_fold, 添加折号字段
+        fold_samples = [(i, b, g, f) for i, b, g in val_samples_simple]
+        # 调用 search_fold 函数，在当前折的验证集上执行贝叶斯优化
+        lam_best, mu_best, alpha_best = search_fold(fold_samples, eval_func, n_trials=n_trials, opt_alpha=opt_alpha)
+        # 将当前折的结果（折号、最佳lambda、最佳mu (及 alpha)）追加到 results 列表中，数值四舍五入到小数点后4位
+        res = {"fold": f, "lambda": round(lam_best, 4), "mu": round(mu_best, 4)}
+        if opt_alpha and alpha_best is not None:
+            res["alpha"] = round(alpha_best, 4)
+        results.append(res)
         # 在每完成一折的搜索后，都将当前的全部结果实时写入到 CSV 文件中，并打印
         pd.DataFrame(results).to_csv(out_path, index=False, encoding="utf-8", float_format="%.4f")
-        print(f"Fold {f}: lambda={lam_best:.4f}, mu={mu_best:.4f}")
+        if opt_alpha and alpha_best is not None:
+            print(f"Fold {f}: lambda={lam_best:.4f}, mu={mu_best:.4f}, alpha={alpha_best:.4f}")
+        else:
+            print(f"Fold {f}: lambda={lam_best:.4f}, mu={mu_best:.4f}")
 
     return results
 
@@ -301,9 +284,12 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument("--fold", type=int, default=None, help="仅评估指定折号 (从 0 开始), 默认为全部折", )
     # 指定贝叶斯优化的迭代次数
     parser.add_argument("--trials", type=int, default=50, help="贝叶斯优化迭代次数", )
+    # todo 是否同时优化 alpha 超参数
+    parser.add_argument("--alpha", action="store_true", help="同时优化 alpha 超参", )
     # 指定是否运行在调试模式下
     parser.add_argument("--debug", action="store_true", help="调试模式, 仅运行少量迭代", )
     args = parser.parse_args()
 
     # 进行调参
-    tune_params(args.dataset, debug=args.debug, fold=args.fold, n_trials=args.trials, kfold=args.kfold, )
+    tune_params(args.dataset, debug=args.debug, fold=args.fold, n_trials=args.trials, kfold=args.kfold,
+                opt_alpha=args.alpha, )
