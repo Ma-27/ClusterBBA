@@ -32,6 +32,9 @@ from data.bba_generation.kfold_xu_seeds import (
 )
 from data.bba_generation.xu_seeds import CSV_PATH as BASIC_CSV_PATH
 
+# 验证集所在目录
+VAL_CSV_DIR = BASE_DIR / "data/bba_validation/kfold_xu_bbavalset_seeds"
+
 
 def _print_md_sample(df: pd.DataFrame, n: int = 5) -> None:
     """以 Markdown 表格格式打印 ``DataFrame`` 样例。"""
@@ -395,6 +398,78 @@ def test_data_consistency() -> None:
         print("数据一致性检查通过")
 
 
+def test_validation_sets() -> None:
+    """检查各折验证集 CSV 是否结构完整且 BBA 合法。"""
+
+    print("开始测试验证集 CSV……")
+    attr_names = ["A", "P", "C", "KL", "KW", "AC", "KG"]
+    decimal_cols = [
+        "{Ka}",
+        "{Ro}",
+        "{Ca}",
+        "{Ka ∪ Ro}",
+        "{Ka ∪ Ca}",
+        "{Ro ∪ Ca}",
+        "{Ka ∪ Ro ∪ Ca}",
+    ]
+    errors: list[str] = []
+    for fold in range(5):
+        # 逐个读取 bbavalset_seeds_fold{fold}.csv
+        csv_path = VAL_CSV_DIR / f"bbavalset_seeds_fold{fold}.csv"
+        if not csv_path.exists():
+            errors.append(f"缺失文件 {csv_path}")
+            continue
+        df = pd.read_csv(csv_path)
+        df["sample_index"] = df["sample_index"].astype(int)
+
+        # 统计每个样本索引的行数
+        counts = df["sample_index"].value_counts().sort_index()
+        if len(counts) != 168:
+            errors.append(f"{csv_path.name}: 样本数不是 168")
+        wrong = counts[counts != len(attr_names)]
+        if not wrong.empty:
+            errors.append(
+                f"{csv_path.name}: 以下索引的行数不等于 {len(attr_names)}: {list(wrong.index)}"
+            )
+        if len(counts) == 168 and wrong.empty:
+            print(f" - {csv_path.name} 样本完整性检查通过")
+        else:
+            print(f" - {csv_path.name} 样本完整性检查失败")
+
+        # 检查 BBA 数值合法性
+        errs = _check_bba_values(df, csv_path.name)
+        if errs:
+            print(f" - {csv_path.name} BBA 值检查失败")
+            for e in errs:
+                print("   ", e)
+        else:
+            print(f" - {csv_path.name} BBA 值检查通过")
+        errors += errs
+
+        # 检查小数位是否符合要求
+        errs = _check_decimal_places(csv_path, decimal_cols)
+        if errs:
+            print(f" - {csv_path.name} 小数位检查失败")
+            for e in errs:
+                print("   ", e)
+        else:
+            print(f" - {csv_path.name} 小数位检查通过")
+        errors += errs
+
+        # dataset_split 必须全部为 validation
+        if set(df["dataset_split"]) != {"validation"}:
+            errors.append(f"{csv_path.name}: dataset_split 非全 'validation'")
+
+    if errors:
+        print("验证集 CSV 检测到以下问题:")
+        for e in errors:
+            print("-", e)
+        raise AssertionError("验证集 CSV 检测失败")
+    else:
+        print("所有验证集 CSV 检查通过")
+
+
 if __name__ == "__main__":  # pragma: no cover
     test_index_mapping()
     test_data_consistency()
+    test_validation_sets()
