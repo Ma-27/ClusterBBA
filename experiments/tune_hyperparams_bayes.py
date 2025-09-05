@@ -10,10 +10,12 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from functools import partial
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import optuna
+import pandas as pd
 from optuna.samplers import TPESampler
 from tqdm import tqdm
 
@@ -28,9 +30,7 @@ if BASE_DIR not in sys.path:
 # 依赖本项目内现成工具函数 / 模块
 import config
 from config import PROGRESS_NCOLS
-import cluster.multi_clusters as multi_clusters
 import fusion.my_rule as my_rule
-import pandas as pd
 from utility.io_application import (
     load_application_dataset,
     load_application_dataset_cv,
@@ -62,21 +62,6 @@ EVAL_FUNCS: Dict[str, Callable[..., float]] = {
 # 参数同步与评估逻辑
 # ---------------------------------------------------------------------------
 
-def apply_hyperparams(lambda_val: float, mu_val: float) -> None:
-    """同步 ``lambda`` 与 ``mu`` 超参, 确保所有模块读取到相同值."""
-
-    # --------- 更新全局配置中的超参 --------- #
-    config.LAMBDA = lambda_val
-    config.MU = mu_val
-
-    # --------- 同步到其他已导入模块 --------- #
-    # 这些模块在运行时读取模块级变量, 因此需要手动覆盖
-    multi_clusters.LAMBDA = lambda_val
-    multi_clusters.MU = mu_val
-    my_rule.LAMBDA = lambda_val
-    my_rule.MU = mu_val
-
-
 def collect_accuracy(samples: List[Tuple[int, List, str, int]], lambda_val: float, mu_val: float,
                      eval_func: Callable[..., float], *, alpha: float | None = None, ) -> float:
     """在给定样本上计算分类准确率."""
@@ -89,14 +74,15 @@ def collect_accuracy(samples: List[Tuple[int, List, str, int]], lambda_val: floa
         except Exception:
             pass
 
-    # 应用当前的 ``lambda``、``mu`` 组合
-    apply_hyperparams(lambda_val, mu_val)
+    # 构造融合函数，确保 ``lambda`` 与 ``mu`` 仅在当前 trial 中生效
+    combine_func = partial(my_rule.my_combine, lambda_val=lambda_val, mu_val=mu_val)
 
     # 评估函数只接受 ``(idx, bbas, gt)`` 形式的样本
     simple_samples = [(idx, bbas, gt) for idx, bbas, gt, _ in samples]
 
     # 调用对应数据集的准确率评估函数
-    return float(eval_func(samples=simple_samples, show_progress=False, data_progress=False, debug=False))
+    return float(eval_func(samples=simple_samples, show_progress=False, data_progress=False, debug=False,
+                           combine_func=combine_func, ))
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +109,7 @@ def _objective(trial: optuna.Trial, samples: List[Tuple[int, List, str, int]], e
 def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[..., float], *, n_trials: int = 50,
                 opt_alpha: bool = False, lambda_range: Tuple[float, float] = (0.001, 1000.0),
                 mu_range: Tuple[float, float] = (0.001, 1000.0), init_params: Optional[Dict[str, float]] = None,
-                seed: Optional[int] = 42, ) -> Tuple[float, float, Optional[float]]:
+                seed: Optional[int] = 42, n_jobs: int = 1, ) -> Tuple[float, float, Optional[float]]:
     """在单个折上使用贝叶斯优化搜索 ``lambda``、``mu`` (及可选 ``alpha``).
 
     Parameters
@@ -131,6 +117,8 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
     seed : int, optional
         随机种子, 默认为 ``42`` 以保证结果可复现。当传入 ``None`` 或其他值时,
         将使用该种子初始化 :class:`~optuna.samplers.TPESampler`.
+    n_jobs : int, optional
+        并行执行的试验数量, 传入大于 1 的值可在多核 CPU 上并行运行。
     """
 
     # --------- 初始化贝叶斯优化流程 --------- #
@@ -167,6 +155,7 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
         ),
         n_trials=n_trials,
         callbacks=[_callback],
+        n_jobs=n_jobs,
     )
     pbar.close()
 
@@ -186,9 +175,9 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
     return lam_best, mu_best, None
 
 
-def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool = False,
-                fold: Optional[int] = None, n_trials: int = 50, kfold: bool = False,
-                opt_alpha: bool = False, twenty_times: bool = False, ) -> List[Dict[str, float]]:
+def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool = False, fold: Optional[int] = None,
+                n_trials: int = 50, kfold: bool = False, opt_alpha: bool = False, twenty_times: bool = False,
+                n_jobs: int = 1, ) -> List[Dict[str, float]]:
     """搜索并保存最优的 ``lambda``、``mu`` (及可选 ``alpha``) 组合.
 
     Parameters
@@ -201,6 +190,8 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
     twenty_times : bool, optional
         若与 ``kfold`` 一同使用, 将整个 k-fold 搜索重复 20 次, 最终
         得到 100 组 ``(lambda, mu)`` 结果并写入 ``bayes_best_params_kfold_20times_<dataset>.csv``.
+    n_jobs : int, optional
+        并行执行的试验数量, 大于 1 时可利用多核 CPU 加速贝叶斯优化。
     """
 
     # --------- 准备数据与评估函数 --------- #
@@ -224,7 +215,13 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
         if debug:
             n_trials = min(2, n_trials)
         # 4. 调用核心搜索函数，在整个数据集上进行贝叶斯优化，找到最佳的 lambda 和 mu
-        lam_best, mu_best, alpha_best = search_fold(samples, eval_func, n_trials=n_trials, opt_alpha=opt_alpha)
+        lam_best, mu_best, alpha_best = search_fold(
+            samples,
+            eval_func,
+            n_trials=n_trials,
+            opt_alpha=opt_alpha,
+            n_jobs=n_jobs,
+        )
         # 5. 将找到的最佳参数存入字典，并将结果四舍五入到小数点后 4 位
         result = {"lambda": round(lam_best, 4), "mu": round(mu_best, 4)}
         if opt_alpha and alpha_best is not None:
@@ -300,6 +297,7 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
                     mu_range=mu_range,
                     init_params=init_params,
                     seed=42 + idx,
+                    n_jobs=n_jobs,
                 )
                 results.append({"times": idx, "lambda": round(lam_best, 4), "mu": round(mu_best, 4)})
                 pd.DataFrame(results).to_csv(out_path, index=False, encoding="utf-8", float_format="%.4f")
@@ -332,6 +330,7 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
             lambda_range=lambda_range,
             mu_range=mu_range,
             init_params=init_params,
+            n_jobs=n_jobs,
         )
         # 将当前折的结果（折号、最佳lambda、最佳mu (及 alpha)）追加到 results 列表中，数值四舍五入到小数点后4位
         res = {"fold": f, "lambda": round(lam_best, 4), "mu": round(mu_best, 4)}
@@ -371,8 +370,10 @@ if __name__ == "__main__":  # pragma: no cover
     # 是否在 kfold 模式下重复运行 20 次
     parser.add_argument("--20times", dest="times20", action="store_true",
                         help="在 k-fold 模式下重复运行 20 次, 共生成 100 组 (lambda, mu)")
+    # 并行执行的 trial 数量
+    parser.add_argument("--n-jobs", type=int, default=1, help="并行运行的 trial 数量", )
     args = parser.parse_args()
 
     # 进行调参
     tune_params(args.dataset, debug=args.debug, fold=args.fold, n_trials=args.trials, kfold=args.kfold,
-                opt_alpha=args.alpha, twenty_times=args.times20, )
+                opt_alpha=args.alpha, twenty_times=args.times20, n_jobs=args.n_jobs, )
