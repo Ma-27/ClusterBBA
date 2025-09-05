@@ -2,7 +2,7 @@
 """基于贝叶斯优化的 ``lambda``、``mu`` (可选 ``alpha``) 超参调节
 ====================================================================
 
-使用 Optuna 的 TPE 采样器搜索 ``lambda`` 与 ``mu`` 组合, 以最大化分类准确率并减少搜索开销。既支持在 ``kfold`` 数据上逐折评估, 亦可在完整数据集上直接搜索。若启用 ``alpha`` 选项, 则 ``lambda``、``mu`` 与 ``alpha`` 会被同时优化。最终结果直接由 Optuna 的 ``best_params`` 决定, 不再额外处理平局情形。
+使用 Optuna 的 TPE 采样器搜索 ``lambda`` 与 ``mu`` 组合, 以最大化分类准确率并减少搜索开销。既支持在 ``kfold`` 数据上逐折评估, 亦可在完整数据集上直接搜索。若启用 ``alpha`` 选项, 则 ``lambda``、``mu`` 与 ``alpha`` 会被同时优化; 否则若出现并列, 将按固定 ``alpha`` 序列重新评估并比较曲线稳定性来打破平局。
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+import numpy as np
 import optuna
 from optuna.samplers import TPESampler
 from tqdm import tqdm
@@ -56,6 +57,12 @@ EVAL_FUNCS: Dict[str, Callable[..., float]] = {
     "glass": eval_glass,
     "wine": eval_wine,
 }
+
+ALPHA_SEQ = [
+    1 / 8, 1 / 7, 1 / 6, 1 / 5, 1 / 4, 1 / 3, 1 / 2, 1,
+    2, 3, 4, 5, 6, 7, 8,
+]
+_TIE_EPS = 1e-6
 
 
 # ---------------------------------------------------------------------------
@@ -148,11 +155,60 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
     )
     pbar.close()
 
-    # 直接返回 Optuna 选出的最佳参数组合
-    lam_best = study.best_params["lambda"]
-    mu_best = study.best_params["mu"]
-    alpha_best = study.best_params.get("alpha")
-    return lam_best, mu_best, alpha_best
+    # 如果启用了 ``alpha`` 优化选项, 则直接返回最优结果
+    if opt_alpha:
+        lam_best = study.best_params["lambda"]
+        mu_best = study.best_params["mu"]
+        alpha_best = study.best_params.get("alpha")
+        return lam_best, mu_best, alpha_best
+
+    # --------- 挑选并列的最优解 --------- #
+    best_acc = study.best_value
+    candidates = [
+        (t.params["lambda"], t.params["mu"])
+        for t in study.trials
+        if abs(t.value - best_acc) <= _TIE_EPS
+    ]
+
+    # 若仅有一个候选, 直接返回
+    if len(candidates) == 1:
+        lam_best, mu_best = candidates[0]
+        return lam_best, mu_best, None
+
+    # --------- 依据固定 α 序列重新评估以打破平局 --------- #
+    tie_results = []
+    tie_pbar = tqdm(candidates, desc="平局处理", ncols=PROGRESS_NCOLS)
+    for lam, mu in tie_pbar:
+        # 对每个候选组合遍历给定的 α 序列, 记录对应的准确率曲线
+        scores = [
+            collect_accuracy(samples, lam, mu, eval_func, alpha=a) for a in ALPHA_SEQ
+        ]
+        tie_results.append((lam, mu, scores))
+        tie_pbar.set_postfix({"lambda": lam, "mu": mu, "best": f"{max(scores):.4f}"})
+    tie_pbar.close()
+
+    # 先比较各组合在 α 序列中取得的最高准确率
+    best_alpha = max(max(scores) for _, _, scores in tie_results)
+    candidates = [
+        (lam, mu, scores)
+        for lam, mu, scores in tie_results
+        if abs(max(scores) - best_alpha) <= _TIE_EPS
+    ]
+    if len(candidates) == 1:
+        lam, mu, _ = candidates[0]
+        return lam, mu, None
+
+    # 仍然平局时, 计算曲线的“平稳度”作为最终判据，
+    final_scores = []
+    for lam, mu, scores in candidates:
+        arr = np.asarray(scores, dtype=float)
+        # 幅度越小且方差越大, 得分越低; 反之越高
+        score = (arr.max() - arr.min()) / (arr.std() + 1e-6)
+        final_scores.append((score, lam, mu))
+
+    final_scores.sort(reverse=True)
+    _, lam_best, mu_best = final_scores[0]
+    return lam_best, mu_best, None
 
 
 def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool = False, fold: Optional[int] = None,
