@@ -139,12 +139,12 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
     def _callback(study: optuna.Study, trial: optuna.Trial) -> None:  # pragma: no cover
         pbar.update(1)
         postfix = {
-            "lambda": trial.params.get("lambda", float("nan")),
-            "mu": trial.params.get("mu", float("nan")),
+            "lambda": f"{trial.params.get('lambda', float('nan')):.4f}",
+            "mu": f"{trial.params.get('mu', float('nan')):.4f}",
             "acc": f"{trial.value:.4f}",
         }
         if opt_alpha:
-            postfix["alpha"] = trial.params.get("alpha", float("nan"))
+            postfix["alpha"] = f"{trial.params.get('alpha', float('nan')):.4f}"
         pbar.set_postfix(postfix)
 
     # 运行贝叶斯优化迭代
@@ -160,6 +160,8 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
         lam_best = study.best_params["lambda"]
         mu_best = study.best_params["mu"]
         alpha_best = study.best_params.get("alpha")
+        # 打印选出的最优超参组合
+        tqdm.write(f"\nSelected best hyperparameters: lambda={lam_best:.4f}, mu={mu_best:.4f}, alpha={alpha_best:.4f}")
         return lam_best, mu_best, alpha_best
 
     # --------- 挑选并列的最优解 --------- #
@@ -169,10 +171,16 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
         for t in study.trials
         if abs(t.value - best_acc) <= _TIE_EPS
     ]
+    # 打印所有并列候选对 (换行避免与进度条同一行)
+    formatted = "[" + ", ".join(f"({lam:.4f}, {mu:.4f})" for lam, mu in candidates) + "]"
+    tqdm.write(f"\nInitial tie candidates: {formatted}")
 
     # 若仅有一个候选, 直接返回
     if len(candidates) == 1:
         lam_best, mu_best = candidates[0]
+        # 打印选出的最优超参组合
+        tqdm.write(
+            f"\nSelected best hyperparameters: lambda={lam_best:.4f}, mu={mu_best:.4f}, Only one Candidate, Finished")
         return lam_best, mu_best, None
 
     # --------- 依据固定 α 序列重新评估以打破平局 --------- #
@@ -184,7 +192,7 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
             collect_accuracy(samples, lam, mu, eval_func, alpha=a) for a in ALPHA_SEQ
         ]
         tie_results.append((lam, mu, scores))
-        tie_pbar.set_postfix({"lambda": lam, "mu": mu, "best": f"{max(scores):.4f}"})
+        tie_pbar.set_postfix({"lambda": f"{lam:.4f}", "mu": f"{mu:.4f}", "best": f"{max(scores):.4f}"})
     tie_pbar.close()
 
     # 先比较各组合在 α 序列中取得的最高准确率
@@ -194,8 +202,15 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
         for lam, mu, scores in tie_results
         if abs(max(scores) - best_alpha) <= _TIE_EPS
     ]
+
+    # 打印进入下一轮平局比较的候选对
+    formatted_next = "[" + ", ".join(f"({lam:.4f}, {mu:.4f})" for lam, mu, _ in candidates) + "]"
+    tqdm.write("\nNext round (Stable Round) candidates: " + formatted_next)
+
     if len(candidates) == 1:
         lam, mu, _ = candidates[0]
+        # 打印选出的最优超参组合
+        tqdm.write(f"\nSelected best hyperparameters: lambda={lam:.4f}, mu={mu:.4f}, Only one Candidate, Finished")
         return lam, mu, None
 
     # 仍然平局时, 计算曲线的“平稳度”作为最终判据，
@@ -207,7 +222,14 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
         final_scores.append((score, lam, mu))
 
     final_scores.sort(reverse=True)
+
+    # 打印最终轮后平局比较的候选对
+    formatted_next = "[" + ", ".join(f"({lam:.4f}, {mu:.4f})" for lam, mu, _ in candidates) + "]"
+    tqdm.write("\nFinal Round Remaining candidates: " + formatted_next)
+
     _, lam_best, mu_best = final_scores[0]
+    # 打印选出的最优超参组合
+    tqdm.write(f"\nSelected best hyperparameters: lambda={lam_best:.4f}, mu={mu_best:.4f}")
     return lam_best, mu_best, None
 
 
