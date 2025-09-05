@@ -58,7 +58,6 @@ EVAL_FUNCS: Dict[str, Callable[..., float]] = {
 }
 
 
-
 # ---------------------------------------------------------------------------
 # 参数同步与评估逻辑
 # ---------------------------------------------------------------------------
@@ -123,12 +122,19 @@ def _objective(trial: optuna.Trial, samples: List[Tuple[int, List, str, int]], e
 
 def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[..., float], *, n_trials: int = 50,
                 opt_alpha: bool = False, lambda_range: Tuple[float, float] = (0.001, 1000.0),
-                mu_range: Tuple[float, float] = (0.001, 1000.0), init_params: Optional[Dict[str, float]] = None, ) -> \
-        Tuple[float, float, Optional[float]]:
-    """在单个折上使用贝叶斯优化搜索 ``lambda``、``mu`` (及可选 ``alpha``)."""
+                mu_range: Tuple[float, float] = (0.001, 1000.0), init_params: Optional[Dict[str, float]] = None,
+                seed: Optional[int] = 42, ) -> Tuple[float, float, Optional[float]]:
+    """在单个折上使用贝叶斯优化搜索 ``lambda``、``mu`` (及可选 ``alpha``).
+
+    Parameters
+    ----------
+    seed : int, optional
+        随机种子, 默认为 ``42`` 以保证结果可复现。当传入 ``None`` 或其他值时,
+        将使用该种子初始化 :class:`~optuna.samplers.TPESampler`.
+    """
 
     # --------- 初始化贝叶斯优化流程 --------- #
-    sampler = TPESampler(seed=42)  # 使用 TPE 采样器, 结果可复现
+    sampler = TPESampler(seed=seed)
     study = optuna.create_study(direction="maximize", sampler=sampler)
     # 若提供了初始点, 则将其加入
     if init_params is not None:
@@ -180,8 +186,9 @@ def search_fold(samples: List[Tuple[int, List, str, int]], eval_func: Callable[.
     return lam_best, mu_best, None
 
 
-def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool = False, fold: Optional[int] = None,
-                n_trials: int = 50, kfold: bool = False, opt_alpha: bool = False, ) -> List[Dict[str, float]]:
+def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool = False,
+                fold: Optional[int] = None, n_trials: int = 50, kfold: bool = False,
+                opt_alpha: bool = False, twenty_times: bool = False, ) -> List[Dict[str, float]]:
     """搜索并保存最优的 ``lambda``、``mu`` (及可选 ``alpha``) 组合.
 
     Parameters
@@ -191,6 +198,9 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
     kfold : bool, optional
         ``True`` 时按折号在验证集 ``bbavalset_<dataset>_fold<k>.csv`` 上逐折搜索,
         否则在完整数据集上评估 (默认).
+    twenty_times : bool, optional
+        若与 ``kfold`` 一同使用, 将整个 k-fold 搜索重复 20 次, 最终
+        得到 100 组 ``(lambda, mu)`` 结果并写入 ``bayes_best_params_kfold_20times_<dataset>.csv``.
     """
 
     # --------- 准备数据与评估函数 --------- #
@@ -267,6 +277,35 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
         mu_range = (max(0.001, mu0 / 1000), min(1000.0, mu0 * 1000))
         init_params = {"lambda": lam0, "mu": mu0}
 
+    # 验证集所在目录
+    val_dir = (Path(__file__).resolve().parents[1] / "data" / "bba_validation" / f"kfold_xu_bbavalset_{dataset}")
+
+    if twenty_times:
+        # 重复执行 20 次, 共生成 100 组 (lambda, mu)
+        out_path = (Path(__file__).resolve().parents[
+                        1] / "experiments_result" / f"bayes_best_params_kfold_20times_{dataset}.csv")
+        results: List[Dict[str, float]] = []
+        idx = 1
+        for t in range(20):
+            for f in folds:
+                val_csv = val_dir / f"bbavalset_{dataset}_fold{f}.csv"
+                val_samples_simple = load_application_dataset(csv_path=val_csv, debug=False)
+                fold_samples = [(i, b, g, f) for i, b, g in val_samples_simple]
+                lam_best, mu_best, _ = search_fold(
+                    fold_samples,
+                    eval_func,
+                    n_trials=n_trials,
+                    opt_alpha=opt_alpha,
+                    lambda_range=lambda_range,
+                    mu_range=mu_range,
+                    init_params=init_params,
+                    seed=42 + idx,
+                )
+                results.append({"times": idx, "lambda": round(lam_best, 4), "mu": round(mu_best, 4)})
+                pd.DataFrame(results).to_csv(out_path, index=False, encoding="utf-8", float_format="%.4f")
+                idx += 1
+        return results
+
     # 初始化一个空列表，用于存储每一折的最优参数结果
     results: List[Dict[str, float]] = []
 
@@ -277,14 +316,6 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
             / f"bayes_best_params_kfold_{dataset}.csv"
     )
 
-    # 验证集所在目录
-    val_dir = (
-            Path(__file__).resolve().parents[1]
-            / "data"
-            / "bba_validation"
-            / f"kfold_xu_bbavalset_{dataset}"
-    )
-
     # 遍历需要处理的每一折 (folds 列表可能是全部折，也可能是用户指定的单折)
     for f in folds:
         # 2. 加载当前折对应的验证集
@@ -293,9 +324,15 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
         # 3. 为复用 search_fold, 添加折号字段
         fold_samples = [(i, b, g, f) for i, b, g in val_samples_simple]
         # 调用 search_fold 函数，在当前折的验证集上执行贝叶斯优化
-        lam_best, mu_best, alpha_best = search_fold(fold_samples, eval_func, n_trials=n_trials, opt_alpha=opt_alpha,
-                                                    lambda_range=lambda_range, mu_range=mu_range,
-                                                    init_params=init_params, )
+        lam_best, mu_best, alpha_best = search_fold(
+            fold_samples,
+            eval_func,
+            n_trials=n_trials,
+            opt_alpha=opt_alpha,
+            lambda_range=lambda_range,
+            mu_range=mu_range,
+            init_params=init_params,
+        )
         # 将当前折的结果（折号、最佳lambda、最佳mu (及 alpha)）追加到 results 列表中，数值四舍五入到小数点后4位
         res = {"fold": f, "lambda": round(lam_best, 4), "mu": round(mu_best, 4)}
         if opt_alpha and alpha_best is not None:
@@ -331,8 +368,11 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument("--alpha", action="store_true", help="同时优化 alpha 超参", )
     # 指定是否运行在调试模式下
     parser.add_argument("--debug", action="store_true", help="调试模式, 仅运行少量迭代", )
+    # 是否在 kfold 模式下重复运行 20 次
+    parser.add_argument("--20times", dest="times20", action="store_true",
+                        help="在 k-fold 模式下重复运行 20 次, 共生成 100 组 (lambda, mu)")
     args = parser.parse_args()
 
     # 进行调参
     tune_params(args.dataset, debug=args.debug, fold=args.fold, n_trials=args.trials, kfold=args.kfold,
-                opt_alpha=args.alpha, )
+                opt_alpha=args.alpha, twenty_times=args.times20, )
