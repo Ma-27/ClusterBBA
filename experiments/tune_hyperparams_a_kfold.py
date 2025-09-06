@@ -179,7 +179,7 @@ def tune_kfold_params(dataset: str, *, csv_path: str | Path | None = None, debug
             raise ValueError(f"fold={fold} 超出范围 {folds}")
         folds = [fold]
     results: List[Dict[str, float]] = []
-    out_path = Path(__file__).resolve().parents[1] / "experiments_result" / f"kfold_best_params_{dataset}.csv"
+    out_path = Path(__file__).resolve().parents[1] / "experiments_result" / f"best_params_kfold_{dataset}.csv"
 
     for fold in folds:
         fold_samples = [s for s in samples if s[3] == fold]
@@ -192,29 +192,13 @@ def tune_kfold_params(dataset: str, *, csv_path: str | Path | None = None, debug
 
 
 if __name__ == "__main__":  # pragma: no cover
-    parser = argparse.ArgumentParser(
-        description="搜索 K 折交叉验证 BBA 的最佳 lambda、mu 组合"
-    )
-
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="iris",
-        help="数据集名称, 对应 kfold_xu_bba_<dataset>.csv",
-    )
-
-    parser.add_argument(
-        "--fold",
-        type=int,
-        default=None,
-        help="仅评估指定折号 (从 0 开始), 默认为全部折",
-    )
-
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="调试模式, 只尝试前两组超参",
-    )
+    parser = argparse.ArgumentParser(description="搜索 K 折交叉验证 BBA 的最佳 lambda、mu 组合")
+    # todo 指定数据集
+    parser.add_argument("--dataset", type=str, default="iris", help="数据集名称, 对应 kfold_xu_bba_<dataset>.csv", )
+    # 指定是否仅评估某一折
+    parser.add_argument("--fold", type=int, default=None, help="仅评估指定折号 (从 0 开始), 默认为全部折", )
+    # 指定是否运行在调试模式下
+    parser.add_argument("--debug", action="store_true", help="调试模式, 只尝试前两组超参", )
     args = parser.parse_args()
 
     tune_kfold_params(args.dataset, debug=args.debug, fold=args.fold)

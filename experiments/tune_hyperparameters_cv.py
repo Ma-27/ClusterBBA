@@ -50,12 +50,8 @@ def apply_hyperparams(lambda_val: float, mu_val: float) -> None:
     my_rule.MU = mu_val
 
 
-def evaluate_fold(samples: List[Tuple[int, List, str]],
-                  combine_func: Callable,
-                  label_map: Dict[str, str],
-                  *,
-                  lambda_val: float,
-                  mu_val: float) -> Tuple[float, float]:
+def evaluate_fold(samples: List[Tuple[int, List, str]], combine_func: Callable, label_map: Dict[str, str], *,
+                  lambda_val: float, mu_val: float) -> Tuple[float, float]:
     """在单个折上计算准确率与平均负对数似然。
 
     参数
@@ -88,10 +84,7 @@ def evaluate_fold(samples: List[Tuple[int, List, str]],
     return acc, nll
 
 
-def evaluate_cv(samples: List[Tuple[int, List, str, int]],
-                lambda_val: float,
-                mu_val: float,
-                combine_func: Callable,
+def evaluate_cv(samples: List[Tuple[int, List, str, int]], lambda_val: float, mu_val: float, combine_func: Callable,
                 label_map: Dict[str, str]) -> Tuple[float, float]:
     """在所有折上评估给定超参."""
 
@@ -117,9 +110,7 @@ def evaluate_cv(samples: List[Tuple[int, List, str, int]],
     return float(sum(accs) / len(accs)), float(sum(nlls) / len(nlls))
 
 
-def spsa_update(lam: float, mu: float, samples,
-                label_map: Dict[str, str],
-                a: float = 0.1) -> Tuple[float, float]:
+def spsa_update(lam: float, mu: float, samples, label_map: Dict[str, str], a: float = 0.1) -> Tuple[float, float]:
     """执行一次 SPSA 更新以微调 ``lambda`` 与 ``mu``。"""
 
     # 随机选择扰动幅度, 范围与网格搜索一致

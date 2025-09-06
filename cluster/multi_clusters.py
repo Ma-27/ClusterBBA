@@ -133,11 +133,11 @@ class MultiClusters:
         sum_rd_cc: List[float] = []
         for _ in range(times):
             idxs = list(range(len(bbas)))
-            random.shuffle(idxs)
-            cut = max(len(bbas) // 2, 1)
+            random.shuffle(idxs)  # 为当前轮生成随机拆分方案
+            cut = max(len(bbas) // 2, 1)  # 取中点切分，保证左侧至少包含一个元素
             left = [bbas[i] for i in idxs[:cut]]
             right = [bbas[i] for i in idxs[cut:]]
-            # 保证两侧都有元素
+            # 若任一侧为空，则本轮拆分无效，跳过（保证两侧都有元素）
             if not left or not right:
                 continue
             clus_l = initialize_empty_cluster(name="L")
@@ -147,10 +147,12 @@ class MultiClusters:
             for b in right:
                 clus_r.add_bba(b, _init=True)
             dist_df = divergence_matrix([clus_l, clus_r])
+            # 对临时生成的两个子簇计算 RD_CCJS，并收集结果
             sum_rd_cc.append(average_divergence(dist_df))
-        #
+        # 如果所有拆分都失败（例如簇过小），返回 ``None``
         if not sum_rd_cc:
             return None
+        # 将所有有效拆分的 RD_CCJS 取均值作为最终估计
         return sum(sum_rd_cc) / len(sum_rd_cc)
 
     @staticmethod

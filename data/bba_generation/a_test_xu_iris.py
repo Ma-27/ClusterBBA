@@ -32,6 +32,9 @@ from data.bba_generation.kfold_xu_iris import (
 from data.bba_generation.xu_iris import CSV_PATH as BASIC_CSV_PATH
 import numpy as np
 
+# 验证集所在目录
+VAL_CSV_DIR = BASE_DIR / "data/bba_validation/kfold_xu_bbavalset_iris"
+
 
 def _print_md_sample(df: pd.DataFrame, n: int = 5) -> None:
     """以 Markdown 表格格式打印给定 ``DataFrame`` 前 ``n`` 行样例。"""
@@ -41,32 +44,40 @@ def _print_md_sample(df: pd.DataFrame, n: int = 5) -> None:
 
 def test_index_mapping() -> None:
     """检查 ``kfold`` CSV 的 ``sample_index`` 映射。"""
+
     print("开始测试 sample_index 映射……")
+    # 若目标 CSV 不存在，先自动运行生成脚本
     if not KFOLD_CSV_PATH.exists():
         subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_iris"], check=True)
+    # 读取生成的 kfold CSV
     df = pd.read_csv(KFOLD_CSV_PATH)
     # 有些环境可能将 ``sample_index`` 解析为浮点数，这里统一转为 ``int``
     df["sample_index"] = df["sample_index"].astype(int)
+    # 加载原始数据用于校验
     X_all, _, attr_names, _, _ = load_iris_data()
-    n_attr = len(attr_names)
-    ok = True
+    n_attr = len(attr_names)  # 属性数量，应该等于每个样本在 CSV 中出现的行数
+    ok = True  # 标记所有检查是否通过
 
     try:
-        # 所有索引应覆盖 ``1..len(X_all)``
+        # 检查 sample_index 是否覆盖 1..len(X_all) 范围
         assert sorted(df["sample_index"].unique()) == list(range(1, len(X_all) + 1))
         print(" - 索引范围检查通过")
     except AssertionError:
+        # 若索引不完整，记录失败
         print(" - 索引范围检查失败")
         ok = False
 
+    # 统计每个 sample_index 的出现次数
     counts = df["sample_index"].value_counts()
     try:
+        # 每个样本应当正好出现 n_attr 行
         assert (counts == n_attr).all()
         print(" - 每个样本行数检查通过")
     except AssertionError:
         print(" - 每个样本行数检查失败")
         ok = False
 
+    # 统一输出结果
     if ok:
         print("sample_index 映射检查通过")
     else:
@@ -75,8 +86,12 @@ def test_index_mapping() -> None:
 
 def _load_dataset() -> pd.DataFrame:
     """读取原始 Iris 数据集并返回带标签的 ``DataFrame``。"""
+
+    # 这里调用项目中的辅助函数来加载原始特征与标签
     X_all, y_all, attr_names, _, full_class_names = load_iris_data()
+    # 将二维数组转换为 DataFrame，列名使用属性缩写
     df = pd.DataFrame(X_all, columns=attr_names)
+    # ground_truth 列保存物种名称，便于后续对比
     df["ground_truth"] = [full_class_names[i] for i in y_all]
     # 与生成的 CSV 保持一致, 将索引调整为从 1 开始
     df.index = df.index + 1
@@ -85,30 +100,35 @@ def _load_dataset() -> pd.DataFrame:
 
 def _parse_bba(df: pd.DataFrame, attr_names: list[str]) -> dict[int, tuple[float, ...]]:
     """按 ``sample_index`` 重组特征向量。"""
+
     features: dict[int, tuple[float, ...]] = {}
+    # 按 sample_index 分组, 每组包含同一样本的四条属性记录
     for idx, grp in df.groupby("sample_index"):
-        # ``grp`` 含 4 行属性，按 ``attr_names`` 排序还原为原始特征向量
+        # `grp` 含 4 行属性，按 `attr_names` 排序还原为原始特征向量
         values = (
-            grp.set_index("attribute")
-            .loc[attr_names]["attribute_data"]
+            grp.set_index("attribute")  # 将属性名设为索引，方便重新排序
+            .loc[attr_names]["attribute_data"]  # 按既定属性顺序取出数值列
             .to_numpy()
         )
+        # 转为普通 Python 元组，存入字典，键为样本索引
         features[int(idx)] = tuple(values.tolist())
     return features
 
 
-def _check_unique_and_complete(
-        df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str], csv_name: str
-) -> list[str]:
+def _check_unique_and_complete(df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str], csv_name: str) -> \
+        list[str]:
     """验证样本索引是否完整且每个样本恰有 ``len(attr_names)`` 行。"""
     errors: list[str] = []
+    # 统计每个 sample_index 出现的次数，按索引排序便于比对
     counts = df["sample_index"].value_counts().sort_index()
     # dataset_df 的索引从 1 开始, 直接比较即可
     missing = set(dataset_df.index) - set(counts.index)
     if missing:
+        # 若存在缺失索引, 记录错误并打印示例
         errors.append(f"{csv_name}: 缺失样本索引 {sorted(missing)}")
         print("示例缺失索引:")
         _print_md_sample(dataset_df.loc[sorted(missing)[:1]])
+    # 检查每个样本是否恰好具有 len(attr_names) 行
     wrong = counts[counts != len(attr_names)]
     if not wrong.empty:
         errors.append(
@@ -125,12 +145,14 @@ def _check_decimal_places(csv_path: Path, columns: list[str], decimals: int = 4)
     import re
 
     errors: list[str] = []
+    # 以字符串方式读取, 避免自动舍入导致的误判
     df_str = pd.read_csv(csv_path, dtype=str)
     df_full = pd.read_csv(csv_path)
-    # 正则表达式，最多支持 decimal 位小数
+    # 正则表达式：匹配整数或带至多 decimals 位小数的数字
     pattern = re.compile(rf"^-?\d+(?:\.\d{{1,{decimals}}})?$")
 
     for col in columns:
+        # 找到不匹配模式的行，即小数位超过限定的情况
         bad_rows = df_str.index[~df_str[col].str.match(pattern)]
         if not bad_rows.empty:
             errors.append(
@@ -153,16 +175,19 @@ def _check_bba_values(df: pd.DataFrame, csv_name: str) -> list[str]:
         "{Ve ∪ Se}",
         "{Vi ∪ Ve ∪ Se}",
     ]
+    # 检查是否存在负数的 BBA 质量值
     neg_rows = df.index[(df[mass_cols] < 0).any(axis=1)]
     if not neg_rows.empty:
         errors.append(f"{csv_name}: 存在负的 BBA 质量值于行 {neg_rows.tolist()}")
         print(f"{csv_name} 负值示例:")
         _print_md_sample(df.loc[neg_rows])
+    # 检查是否超过 1
     over_rows = df.index[(df[mass_cols] > 1).any(axis=1)]
     if not over_rows.empty:
         errors.append(f"{csv_name}: 存在超过 1 的 BBA 质量值于行 {over_rows.tolist()}")
         print(f"{csv_name} 超过 1 示例:")
         _print_md_sample(df.loc[over_rows])
+    # 所有质量值求和, 检查是否严格等于 1
     sums = df[mass_cols].sum(axis=1)
     # 四舍五入到四位小数后仍应当精确为 1
     bad_sum = df.index[sums.round(4) != 1.0]
@@ -175,27 +200,27 @@ def _check_bba_values(df: pd.DataFrame, csv_name: str) -> list[str]:
     return errors
 
 
-def _check_kfold_alignment(
-        df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str]
-) -> list[str]:
+def _check_kfold_alignment(df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str]) -> list[str]:
     """检查 ``kfold`` 版本是否与原始数据按索引完全对应。"""
     errors: list[str] = []
     # 将 ``sample_index`` 下的 4 行属性重组成特征向量，便于比对
     features = _parse_bba(df, attr_names)
     for idx, row in dataset_df.iterrows():
+        # 如果缺少某个样本索引，直接记录错误
         if idx not in features:
             errors.append(f"kfold CSV: 缺失索引 {idx}")
             print("缺失索引示例:")
             _print_md_sample(dataset_df.loc[[idx]])
             continue
-        vals = np.array(features[idx], dtype=float)
-        expect = row[attr_names].to_numpy(dtype=float)
+        vals = np.array(features[idx], dtype=float)  # 从 CSV 中还原出的特征值
+        expect = row[attr_names].to_numpy(dtype=float)  # 原始数据中的特征值
         if not np.allclose(vals, expect, atol=1e-6):
             errors.append(f"kfold CSV: 索引 {idx} 的特征不匹配")
             print("CSV 示例:")
             _print_md_sample(df[df["sample_index"] == idx])
             print("dataset 示例:")
             _print_md_sample(dataset_df.loc[[idx]])
+        # ground_truth 也需逐一校验
         gt = df[df["sample_index"] == idx]["ground_truth"].iloc[0]
         if gt != row["ground_truth"]:
             errors.append(
@@ -208,9 +233,7 @@ def _check_kfold_alignment(
     return errors
 
 
-def _check_basic_alignment(
-        df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str]
-) -> list[str]:
+def _check_basic_alignment(df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str]) -> list[str]:
     """检查普通版 CSV 中的特征集合与原始数据是否一致。"""
     errors: list[str] = []
     # 从 CSV 重组所有特征向量，与原数据集逐一对比
@@ -219,6 +242,7 @@ def _check_basic_alignment(
         tuple(float(row[attr]) for attr in attr_names) for _, row in dataset_df.iterrows()
     ]
     if sorted(csv_features) != sorted(dataset_features):
+        # 如果两者的特征集合不同, 打印出前几个差异项
         diff_csv = [f for f in csv_features if f not in dataset_features][:5]
         diff_ds = [f for f in dataset_features if f not in csv_features][:5]
         errors.append(
@@ -226,18 +250,21 @@ def _check_basic_alignment(
         )
         print("特征集合差异示例:")
         _print_md_sample(pd.DataFrame(diff_csv, columns=attr_names))
+    # 建立特征向量到标签的映射，便于快速比对
     feature_to_label = {
         # 使用特征向量作为键, 快速查询其真实标签
         tuple(float(row[attr]) for attr in attr_names): row["ground_truth"]
         for _, row in dataset_df.iterrows()
     }
     for idx, grp in df.groupby("sample_index"):
+        # 还原当前样本的特征向量
         feat = tuple(
             grp.set_index("attribute").loc[attr_names]["attribute_data"].to_numpy(dtype=float)
         )
         gt = grp["ground_truth"].iloc[0]
         expect = feature_to_label.get(feat)
         if expect is None:
+            # 若特征在原始数据中不存在，则记录错误
             errors.append(f"普通 CSV: 样本 {idx} 的特征未在原数据中找到")
             _print_md_sample(grp)
             continue
@@ -250,14 +277,16 @@ def _check_basic_alignment(
 def test_data_consistency() -> None:
     """检查两份 CSV 是否与原始数据一致且无重复。"""
     print("开始测试 CSV 与原始数据的一致性……")
+    # 如果原始 CSV 不存在则先运行生成脚本，保证测试可重复
     if not BASIC_CSV_PATH.exists():
         subprocess.run(["python", "-m", "data.bba_generation.xu_iris"], check=True)
     if not KFOLD_CSV_PATH.exists():
         subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_iris"], check=True)
 
+    # 读取普通版与 kfold 版 CSV
     df_basic = pd.read_csv(BASIC_CSV_PATH)
     df_kfold = pd.read_csv(KFOLD_CSV_PATH)
-    # 确保索引为 ``int``，避免因类型不同导致比较失败
+    # 确保 sample_index 为整数，避免因类型不同导致比较失败
     df_basic["sample_index"] = df_basic["sample_index"].astype(int)
     df_kfold["sample_index"] = df_kfold["sample_index"].astype(int)
 
@@ -285,6 +314,7 @@ def test_data_consistency() -> None:
         print(" - kfold CSV 样本完整性检查通过")
     errors += errs
 
+    # 检查 BBA 数值及小数位数
     errs = _check_bba_values(df_basic, "普通 CSV")
     if errs:
         print(" - 普通 CSV BBA 值检查失败")
@@ -380,6 +410,78 @@ def test_data_consistency() -> None:
         print("数据一致性检查通过")
 
 
+def test_validation_sets() -> None:
+    """检查各折验证集 CSV 是否结构完整且 BBA 合法。"""
+
+    print("开始测试验证集 CSV……")
+    attr_names = ["SL", "SW", "PL", "PW"]  # 四个属性的缩写
+    decimal_cols = [
+        "{Vi}",
+        "{Ve}",
+        "{Se}",
+        "{Vi ∪ Ve}",
+        "{Vi ∪ Se}",
+        "{Ve ∪ Se}",
+        "{Vi ∪ Ve ∪ Se}",
+    ]
+    errors: list[str] = []
+    for fold in range(5):
+        # 逐个读取 bbavalset_iris_fold{fold}.csv
+        csv_path = VAL_CSV_DIR / f"bbavalset_iris_fold{fold}.csv"
+        if not csv_path.exists():
+            errors.append(f"缺失文件 {csv_path}")
+            continue
+        df = pd.read_csv(csv_path)
+        df["sample_index"] = df["sample_index"].astype(int)
+
+        # 统计每个样本索引的行数
+        counts = df["sample_index"].value_counts().sort_index()
+        if len(counts) != 120:
+            errors.append(f"{csv_path.name}: 样本数不是 120")
+        wrong = counts[counts != len(attr_names)]
+        if not wrong.empty:
+            errors.append(
+                f"{csv_path.name}: 以下索引的行数不等于 {len(attr_names)}: {list(wrong.index)}"
+            )
+        if len(counts) == 120 and wrong.empty:
+            print(f" - {csv_path.name} 样本完整性检查通过")
+        else:
+            print(f" - {csv_path.name} 样本完整性检查失败")
+
+        # 检查 BBA 数值合法性
+        errs = _check_bba_values(df, csv_path.name)
+        if errs:
+            print(f" - {csv_path.name} BBA 值检查失败")
+            for e in errs:
+                print("   ", e)
+        else:
+            print(f" - {csv_path.name} BBA 值检查通过")
+        errors += errs
+
+        # 检查小数位是否符合要求
+        errs = _check_decimal_places(csv_path, decimal_cols)
+        if errs:
+            print(f" - {csv_path.name} 小数位检查失败")
+            for e in errs:
+                print("   ", e)
+        else:
+            print(f" - {csv_path.name} 小数位检查通过")
+        errors += errs
+
+        # dataset_split 必须全部为 validation
+        if set(df["dataset_split"]) != {"validation"}:
+            errors.append(f"{csv_path.name}: dataset_split 非全 'validation'")
+
+    if errors:
+        print("验证集 CSV 检测到以下问题:")
+        for e in errors:
+            print("-", e)
+        raise AssertionError("验证集 CSV 检测失败")
+    else:
+        print("所有验证集 CSV 检查通过")
+
+
 if __name__ == "__main__":  # pragma: no cover
     test_index_mapping()
     test_data_consistency()
+    test_validation_sets()

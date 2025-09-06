@@ -91,6 +91,7 @@ def search(params: Iterable[Tuple[float, float]], *, csv_path: str | Path | None
 
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(description="搜索最佳 lambda、mu 组合")
+    # 指定是否运行在调试模式下
     parser.add_argument("--debug", action="store_true", help="仅测试前两组参数")
     parser.add_argument(
         "--csv",

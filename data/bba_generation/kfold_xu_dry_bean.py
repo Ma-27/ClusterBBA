@@ -2,7 +2,7 @@
 """Dry Bean 数据集 K 折交叉验证版 BBA 生成器
 =======================================
 
-本脚本基于 :mod:`xu_dry_bean` 中实现的生成流程, 对 ``Dry Bean`` 数据集进行 ``K`` 折交叉验证 (默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和正态分布模型, 按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至 ``kfold_xu_bba_dry_bean.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统一填写 ``unknown``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
+本脚本基于 :mod:`xu_dry_bean` 中实现的生成流程, 对 ``Dry Bean`` 数据集进行 ``K`` 折交叉验证 (默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和正态分布模型, 按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至 ``kfold_xu_bba_dry_bean.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统一填写 ``test``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
 """
 
 from __future__ import annotations
@@ -74,14 +74,7 @@ if __name__ == "__main__":
         X_tr += offsets
         X_te += offsets
 
-        (
-            transform_flags,
-            lambdas,
-            mus,
-            sigmas,
-            mean_vectors,
-            _,
-        ) = fit_parameters(X_tr, y_tr, n_class, n_attr)
+        (transform_flags, lambdas, mus, sigmas, mean_vectors, _,) = fit_parameters(X_tr, y_tr, n_class, n_attr)
 
         # ---------- Step-5: 调用原函数生成 BBA DataFrame ----------
         dataset_order = list(train_idx) + list(test_idx)
@@ -107,7 +100,7 @@ if __name__ == "__main__":
 
         # 仅保留当前折的测试样本
         df_fold = df_fold[df_fold["sample_index"].isin(test_idx + 1)].copy()
-        df_fold["dataset_split"] = "unknown"
+        df_fold["dataset_split"] = "test"
         # 只保留测试样本, 训练样本仅用于建立模型
         df_fold["fold"] = fold
 

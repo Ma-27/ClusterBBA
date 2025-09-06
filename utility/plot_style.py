@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
-from cycler import cycler
 
 __all__ = ["apply_style"]
 
@@ -45,14 +44,14 @@ alpha_colors = [
 
 
 def apply_style() -> None:
-    """应用 SCI 论文级别的绘图默认参数"""
+    """应用全局统一的绘图风格"""
     plt.rcParams.update({
         # 画布和分辨率
         'figure.figsize': (8.5 / 2.54, 6 / 2.54),
         'figure.dpi': 800,
         'savefig.dpi': 800,
 
-        # 字体、颜色和线条
+        # 字体设置
         'font.family': 'Times New Roman',
         'font.serif': ['Times New Roman'],
         'font.size': 5,
@@ -66,16 +65,16 @@ def apply_style() -> None:
         'mathtext.it': 'Times New Roman:italic',
         'mathtext.bf': 'Times New Roman:bold',
 
-        # 线条、标记与颜色
-        'lines.linewidth': 0.6,
-        'lines.markersize': 4,
-        'axes.prop_cycle': cycler('color', dark2_8),
+        # 线条和标记尺寸
+        'lines.linewidth': 1.2,
+        'lines.markersize': 5,
 
         # 网格线样式
         'axes.grid': True,
         'grid.linestyle': '--',
-        'grid.linewidth': 0.5,
-        'grid.alpha': 0.6,
+        'grid.linewidth': 0.8,
+        'grid.alpha': 0.8,
+        'grid.color': '#B4B4B4',
 
         # 图例样式
         'legend.frameon': True,
