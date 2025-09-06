@@ -37,6 +37,14 @@ DATASET_META: dict[str, dict[str, str]] = {
     "glass": {"title": "Glass"},
 }
 
+# 数据集与标题字母编号的映射关系
+DATASET_LABEL_IDX: dict[str, int] = {
+    "iris": 0,  # (a)
+    "wine": 1,  # (b)
+    "seeds": 2,  # (c)
+    "glass": 3,  # (d)
+}
+
 
 def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None) -> None:
     """绘制单个数据集的 ``mu`` 与 ``lambda`` 曲线
@@ -134,5 +142,6 @@ if __name__ == "__main__":  # pragma: no cover
     font_kwargs = {"fontsize": 14, "fontweight": "bold"}
 
     # 批量绘制多个数据集的参数曲线
-    for idx, ds in enumerate(datasets):
-        plot_dataset(ds, idx, font_kwargs)
+    for ds in datasets:
+        label_idx = DATASET_LABEL_IDX.get(ds.lower(), 0)
+        plot_dataset(ds, label_idx, font_kwargs)

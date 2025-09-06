@@ -11,7 +11,14 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Tuple
 
 import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    confusion_matrix,
+    matthews_corrcoef,
+    roc_auc_score,
+)
+from sklearn.preprocessing import label_binarize
 from tabulate import tabulate
 from tqdm import tqdm
 
@@ -28,6 +35,7 @@ __all__ = [
     "evaluate_accuracy",
     "load_kfold_params",
     "kfold_evaluate",
+    "print_evaluation_matrix",
 ]
 
 
@@ -110,11 +118,58 @@ def _print_metrics(y_true: List[str], y_pred: List[str], label_map: Dict[str, st
     df_res = pd.DataFrame(rows, columns=["Class / Metric", method_name])
     print(tabulate(df_res, headers="keys", tablefmt="pipe", showindex=False))
 
-    # 混淆矩阵：cm[i, j] 表示真实类别 i 被预测成类别 j 的次数
+    # ---------------------- 混淆矩阵的计算与展示 ---------------------- #
+    # cm[i, j] 表示真实类别 i 被预测成类别 j 的次数，可直观看出分类错配情况
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     print("\nConfusion Matrix:")
     # 行列均为目标类别，直观展示预测错配情况
     print(pd.DataFrame(cm, index=labels, columns=labels).to_string())
+
+
+def print_evaluation_matrix(y_true: List[str], y_pred: List[str], method_name: str) -> None:
+    """根据预测结果打印 TP、TN 等评估指标矩阵。"""
+
+    # 构造混淆矩阵，后续指标均基于该矩阵计算
+    labels = sorted(set(y_true) | set(y_pred))
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
+
+    # ------------------------- 四种基础计数 ------------------------- #
+    tp = fp = fn = tn = 0.0
+    total = cm.sum()
+    for i in range(len(labels)):
+        tp_i = cm[i, i]
+        fp_i = cm[:, i].sum() - tp_i  # 预测成 i 类但真实非 i 类
+        fn_i = cm[i, :].sum() - tp_i  # 真实为 i 类但预测非 i 类
+        tn_i = total - (tp_i + fp_i + fn_i)  # 其余都视作 TN
+        tp += tp_i
+        fp += fp_i
+        fn += fn_i
+        tn += tn_i
+
+    # --------------------------- 派生指标 --------------------------- #
+    precision = tp / (tp + fp) if (tp + fp) else 0.0  # 精确率
+    recall = tp / (tp + fn) if (tp + fn) else 0.0  # 召回率
+    # MCC 综合考虑 TP/TN/FP/FN，是二分类常用指标，这里直接调用库函数
+    mcc = matthews_corrcoef(y_true, y_pred)
+
+    # AUC 需将标签二值化；多分类使用宏平均
+    y_true_bin = label_binarize(y_true, classes=labels)
+    y_pred_bin = label_binarize(y_pred, classes=labels)
+    auc = roc_auc_score(
+        y_true_bin,
+        y_pred_bin,
+        average="macro",
+        multi_class="ovr" if len(labels) > 2 else "raise",
+    )
+
+    # 将所有指标汇总为表格形式输出，便于与其他方法比较
+    df = pd.DataFrame(
+        {
+            "": ["TP", "TN", "FP", "FN", "Precision", "Recall", "MCC", "AUC"],
+            method_name: [tp, tn, fp, fn, precision, recall, mcc, auc],
+        }
+    )
+    print(df.to_markdown(index=False, floatfmt=".4f"))
 
 
 # ---------------------------------------------------------------------------
@@ -123,14 +178,17 @@ def _print_metrics(y_true: List[str], y_pred: List[str], label_map: Dict[str, st
 
 
 def run_classification(samples: List[Tuple[int, List[BBA], str]], combine_func: Callable[[List[BBA]], BBA],
-                       label_map: Dict[str, str], method_name: str, *, warn: bool = True, ) -> None:
-    """收集预测结果并输出评估指标。"""
+                       label_map: Dict[str, str], method_name: str, *, warn: bool = True, ) -> Tuple[
+    List[str], List[str]]:
+    """收集预测结果并输出评估指标, 返回 ``(y_true, y_pred)``。"""
 
     # 调用统一的预测函数获取标签
     y_true, y_pred = collect_predictions(
         samples, combine_func, label_map, show_progress=True, warn=warn
     )
     _print_metrics(y_true, y_pred, label_map, method_name)
+    # 返回真实标签与预测标签，供外部继续计算其他指标
+    return y_true, y_pred
 
 
 def evaluate_accuracy(*, samples: List[Tuple[int, List[BBA], str]] | None = None, debug: bool = False,
@@ -177,8 +235,8 @@ def _apply_hyperparams(lambda_val: float, mu_val: float) -> None:
 
 def kfold_evaluate(samples_cv: List[Tuple[int, List[BBA], str, int]], param_map: Dict[int, Tuple[float, float]],
                    label_map: Dict[str, str], combine_func: Callable[[List[BBA]], BBA], *,
-                   method_name: str = "Proposed", warn: bool = True, ) -> None:
-    """在 Proposed 方法下按折使用最优超参进行评估。"""
+                   method_name: str = "Proposed", warn: bool = True, ) -> Tuple[List[str], List[str]]:
+    """在 Proposed 方法下按折使用最优超参进行评估并返回预测结果。"""
 
     # 收集所有折的真实标签与预测标签
     y_true_all: List[str] = []
@@ -206,3 +264,4 @@ def kfold_evaluate(samples_cv: List[Tuple[int, List[BBA], str, int]], param_map:
 
     # 输出整体评估指标
     _print_metrics(y_true_all, y_pred_all, label_map, method_name)
+    return y_true_all, y_pred_all
