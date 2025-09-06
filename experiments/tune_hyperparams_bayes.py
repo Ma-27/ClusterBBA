@@ -278,13 +278,31 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
     val_dir = (Path(__file__).resolve().parents[1] / "data" / "bba_validation" / f"kfold_xu_bbavalset_{dataset}")
 
     if twenty_times:
-        # 重复执行 20 次, 共生成 100 组 (lambda, mu)
+        # 重复执行 20 次, 共生成 100 组 (lambda, mu)，支持断点续跑
         out_path = (Path(__file__).resolve().parents[
                         1] / "experiments_result" / f"bayes_best_params_kfold_20times_{dataset}.csv")
+
+        # 已完成结果的断点恢复
         results: List[Dict[str, float]] = []
+        start_t = 0
+        start_fold_idx = 0
         idx = 1
-        for t in range(20):
-            for f in folds:
+        if out_path.exists():
+            df_exist = pd.read_csv(out_path)
+            results = df_exist.to_dict("records")
+            completed = len(results)
+            total_needed = 20 * len(folds)
+            if completed >= total_needed:
+                # 所有结果均已存在, 直接返回
+                return results
+            idx = completed + 1
+            start_t = completed // len(folds)
+            start_fold_idx = completed % len(folds)
+
+        for t in range(start_t, 20):
+            # 若从中途中断, 首次循环只从未完成的折号继续
+            fold_iter = folds[start_fold_idx:] if t == start_t else folds
+            for f in fold_iter:
                 val_csv = val_dir / f"bbavalset_{dataset}_fold{f}.csv"
                 val_samples_simple = load_application_dataset(csv_path=val_csv, debug=False)
                 fold_samples = [(i, b, g, f) for i, b, g in val_samples_simple]
@@ -302,6 +320,8 @@ def tune_params(dataset: str, *, csv_path: str | Path | None = None, debug: bool
                 results.append({"times": idx, "lambda": round(lam_best, 4), "mu": round(mu_best, 4)})
                 pd.DataFrame(results).to_csv(out_path, index=False, encoding="utf-8", float_format="%.4f")
                 idx += 1
+            # 从第二次循环开始, 折号应从头开始
+            start_fold_idx = 0
         return results
 
     # 初始化一个空列表，用于存储每一折的最优参数结果

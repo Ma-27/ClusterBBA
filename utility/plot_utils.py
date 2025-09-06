@@ -37,7 +37,7 @@ def highlight_overlapping_lines(ax: plt.Axes, *, tol: float = 1e-8, extra_width:
                 lines[j].set_linewidth(new_width)
 
 
-def savefig(fig_or_path: str | plt.Figure, path: str | None = None, *, show: bool = True) -> None:
+def savefig(fig_or_path: str | plt.Figure, path: str | None = None, *, show: bool = True, **savefig_kwargs, ) -> None:
     """统一保存图像，可选是否显示"""
     if isinstance(fig_or_path, plt.Figure):
         fig = fig_or_path
@@ -59,8 +59,8 @@ def savefig(fig_or_path: str | plt.Figure, path: str | None = None, *, show: boo
         )
         fig.tight_layout()
     if out is not None:
-        fig.savefig(out)
+        fig.savefig(out, **savefig_kwargs)
     else:
-        fig.savefig("figure.png")
+        fig.savefig("figure.png", **savefig_kwargs)
     if show:
         plt.show()
