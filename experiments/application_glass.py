@@ -138,14 +138,14 @@ if __name__ == "__main__":
         # 载入数据集
         samples_cv = load_application_dataset_cv(debug=debug, csv_path=csv_path)
         # 进行分类任务评估
-        y_true, y_pred = kfold_evaluate(samples_cv, param_map, LABEL_MAP, METHODS["Proposed"])
+        y_true, y_pred, y_score = kfold_evaluate(samples_cv, param_map, LABEL_MAP, METHODS["Proposed"])
     else:
         # ---------------------------- 单次评估流程 ---------------------------- #
         combine_func = METHODS[args.method]
         samples = load_application_dataset(debug=debug, csv_path=csv_path)
         # 进行分类任务评估
-        y_true, y_pred = run_classification(samples, combine_func, LABEL_MAP, args.method)
+        y_true, y_pred, y_score = run_classification(samples, combine_func, LABEL_MAP, args.method)
 
     # 在前述常规评估后，额外输出 TP、TN、Precision 等更细致的指标矩阵
     print("\nAdditional Evaluation Metrics:")
-    print_evaluation_matrix(y_true, y_pred, args.method)
+    print_evaluation_matrix(y_true, y_pred, args.method, y_score=y_score, label_map=LABEL_MAP)

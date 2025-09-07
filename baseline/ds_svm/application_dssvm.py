@@ -24,17 +24,17 @@ pd.options.display.float_format = "{:.4f}".format
 
 
 def evaluate_on_dataset(name: str, method: str = "multinomial", n_splits: int = K_FOLD_SPLITS, random_state: int = 42,
-                        mc_M: int = 400, n_theta_grid: int = 801, ) -> Tuple[
-    float, float, float, float, np.ndarray, np.ndarray, List[str]]:
+                        mc_M: int = 400, n_theta_grid: int = 801, ) \
+        -> (Tuple)[float, float, float, float, np.ndarray, np.ndarray, np.ndarray, List[str],]:
     """在指定数据集上运行所选方法并返回评估结果。"""
 
     # 加载数据集，返回特征矩阵 X、整型标签 y 及类别名称
     X, y, class_names = load_dataset(name)
     # 调用交叉验证函数，获得各折的平均准确率与 F1 等指标
-    acc_m, acc_s, f1_m, f1_s, y_true, y_pred = cross_validate(
+    acc_m, acc_s, f1_m, f1_s, y_true, y_pred, y_score = cross_validate(
         X, y, n_splits, random_state, method, mc_M, n_theta_grid
     )
-    return acc_m, acc_s, f1_m, f1_s, y_true, y_pred, class_names
+    return acc_m, acc_s, f1_m, f1_s, y_true, y_pred, y_score, class_names
 
 
 def summarize_results(y_true: np.ndarray, y_pred: np.ndarray, class_names: List[str], method: str) -> Tuple[
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     # 记录开始时间以计算训练耗时
     start_time = time.time()
     try:
-        acc_m, acc_s, f1_m, f1_s, y_true, y_pred, class_names = evaluate_on_dataset(
+        acc_m, acc_s, f1_m, f1_s, y_true, y_pred, y_score, class_names = evaluate_on_dataset(
             args.dataset,
             method=args.method,
             n_splits=args.splits,
@@ -111,4 +111,4 @@ if __name__ == "__main__":
     print(cm_df.to_string())
     # 追加打印包含 TP、FP 等统计量的评估矩阵
     print("\nAdditional Evaluation Metrics:")
-    print_evaluation_matrix(y_true.tolist(), y_pred.tolist(), args.method)
+    print_evaluation_matrix(y_true.tolist(), y_pred.tolist(), args.method, y_score)
