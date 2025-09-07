@@ -121,8 +121,8 @@ if __name__ == "__main__":
         params_path = (
                 Path(__file__).resolve().parents[1]
                 / "experiments_result"
-                / "bayes_best_params_kfold_wine.csv"
-            # / "best_params_kfold_wine.csv"   # 修改这里以启用旧版本的最优化超参数
+                # / "bayes_best_params_kfold_wine.csv"   # 修改这里以启用旧版本的最优化超参数
+                / "best_params_kfold_wine.csv"
         )
         if not params_path.exists():
             raise FileNotFoundError(f"缺少超参数文件: {params_path}")

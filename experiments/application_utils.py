@@ -221,15 +221,20 @@ def load_kfold_params(csv_path: str | Path) -> Dict[int, Tuple[float, float]]:
     }
 
 
-def _apply_hyperparams(lambda_val: float, mu_val: float) -> None:
-    """将 λ 和 μ 更新到相关模块的全局变量。"""
+def _apply_hyperparams(lambda_val: float, mu_val: float, alpha_val: float | None = None) -> None:
+    """将 λ、μ、α 更新到相关模块的全局变量。"""
+
+    if alpha_val is None:
+        alpha_val = config.ALPHA
 
     config.LAMBDA = lambda_val
     config.MU = mu_val
+    config.ALPHA = alpha_val
     multi_clusters.LAMBDA = lambda_val
     multi_clusters.MU = mu_val
     my_rule.LAMBDA = lambda_val
     my_rule.MU = mu_val
+    my_rule.ALPHA = alpha_val
 
 
 def kfold_evaluate(samples_cv: List[Tuple[int, List[BBA], str, int]], param_map: Dict[int, Tuple[float, float]],
