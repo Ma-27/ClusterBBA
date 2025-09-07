@@ -2,7 +2,7 @@
 """Glass 数据集 K 折交叉验证版 BBA 生成器
 =======================================
 
-基于 :mod:`xu_glass` 实现的生成流程，对 ``Glass`` 数据集进行 ``K`` 折交叉验证(默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和正态分布模型，按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至``kfold_xu_bba_glass.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统一填写 ``test``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
+基于 :mod:`xu_glass` 实现的生成流程，对 ``Glass`` 数据集进行 ``K`` 折交叉验证(默认为 :data:`config.K_FOLD_SPLITS`=5)。在每个折上重建 ``Box-Cox`` 变换和正态分布模型，按 Xu 等人的方法为每个样本、每个属性生成 BBA。所有折合并后保存至 ``kfold_xu_bba_glass.csv``，若使用 ``--use_existing_csv`` 参数，则另存为 ``kfold_xu_bba_glass_resplit.csv``，其中额外记录 ``fold`` 序号，``dataset_split`` 字段统一填写 ``test``。可通过 ``--random_state`` 参数指定交叉验证的随机种子。
 """
 
 from __future__ import annotations
@@ -29,10 +29,13 @@ from data.bba_generation.xu_glass import (
     load_glass_data,
     compute_offsets,
     fit_parameters,
+    CSV_PATH as BASIC_CSV_PATH,
 )
 
 # 输出 CSV 文件保存到 data/bba_generation 同级目录
 CSV_PATH = Path(__file__).resolve().parents[1] / "kfold_xu_bba_glass.csv"
+# 若从已有 CSV 重新划分，则输出为 kfold_xu_bba_glass_resplit.csv
+CSV_RESPLIT_PATH = CSV_PATH.with_name("kfold_xu_bba_glass_resplit.csv")
 # 默认随机种子，可通过命令行覆盖
 DEFAULT_RANDOM_STATE = 621
 
@@ -40,7 +43,55 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="生成 Glass 数据集 K 折交叉验证版 BBA")
     # 指定种子
     parser.add_argument("--random_state", type=int, default=DEFAULT_RANDOM_STATE, help="StratifiedKFold 的随机种子", )
+    # 直接对已有的 xu_bba_glass.csv 进行 K 折划分
+    parser.add_argument("--use_existing_csv", action="store_true", help="直接对已有的 xu_bba_glass.csv 进行 K 折划分", )
     args = parser.parse_args()
+
+    # 若指定 use_existing_csv, 则直接对已有的 BASIC_CSV_PATH 进行 K 折划分
+    if args.use_existing_csv:
+        X_all, y_all, attr_names, _, _ = load_glass_data()
+        df_all = pd.read_csv(BASIC_CSV_PATH)
+        df_all["sample_index"] = df_all["sample_index"].astype(int)
+        # 创建分层 K 折迭代器，保证各折类别分布一致
+        skf = StratifiedKFold(n_splits=K_FOLD_SPLITS, shuffle=True, random_state=args.random_state)
+        fold_map: dict[int, int] = {}
+        # 生成 sample_index 到 fold 的映射
+        for fold, (_, test_idx) in enumerate(skf.split(X_all, y_all)):
+            for idx in test_idx:
+                fold_map[idx + 1] = fold
+        # 映射 sample_index 到fold
+        df_all["fold"] = df_all["sample_index"].map(fold_map)
+        df_all["dataset_split"] = "test"
+        attr_order = {attr: i for i, attr in enumerate(attr_names)}
+        df_all["_attr_order"] = df_all["attribute"].map(attr_order)
+
+        # 按 sample_index、属性顺序 (RI, Na, Mg, ...) 排序
+        df_all = (
+            df_all.sort_values(by=["sample_index", "_attr_order"]) \
+                .reset_index(drop=True)
+        )
+
+        # 删除辅助列
+        df_all = df_all.drop(columns="_attr_order")
+        cols = df_all.columns.tolist()
+
+        # 调整列顺序: dataset_split 之后插入 fold
+        meta_cols = [
+            "sample_index",
+            "ground_truth",
+            "dataset_split",
+            "fold",
+            "attribute",
+            "attribute_data",
+        ]
+        # 确保 meta_cols 顺序正确且不重复
+        rest_cols = [c for c in cols if c not in meta_cols]
+        df_all = df_all[meta_cols + rest_cols]
+
+        ensure_dir(CSV_RESPLIT_PATH)
+        df_all.to_csv(CSV_RESPLIT_PATH, index=False, encoding="utf-8")
+        print(f"\n已保存 {K_FOLD_SPLITS} 折 BBA 至 {CSV_RESPLIT_PATH.resolve()}  (共 {len(df_all)} 行)\n")
+        sys.exit(0)
 
     # ---------- Step-0: 读取基础数据 ----------
     X_all, y_all, attr_names, class_names, full_class_names = load_glass_data()
