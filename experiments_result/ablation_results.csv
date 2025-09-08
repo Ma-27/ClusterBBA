@@ -1,0 +1,17 @@
+dataset,config,accuracy,f1
+Iris,baseline,0.9200,0.9195
+Iris,mu_lambda,0.9467,0.9466
+Iris,alpha,0.9467,0.9466
+Iris,full,0.9667,0.9667
+Wine,baseline,0.9494,0.9512
+Wine,mu_lambda,0.9663,0.9669
+Wine,alpha,0.9494,0.9512
+Wine,full,0.9663,0.9669
+Seeds,baseline,0.8810,0.8804
+Seeds,mu_lambda,0.8952,0.8950
+Seeds,alpha,0.8857,0.8858
+Seeds,full,0.9190,0.9195
+Glass,baseline,0.4953,0.4857
+Glass,mu_lambda,0.5280,0.5040
+Glass,alpha,0.4953,0.4857
+Glass,full,0.5280,0.5040
