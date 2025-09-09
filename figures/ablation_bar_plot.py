@@ -88,10 +88,7 @@ def plot(metric: str = "accuracy") -> None:
     ax.set_ylim(0.0, 1.0)
 
     title_metric = "F1 Score" if metric == "f1" else "Accuracy"
-    fig.suptitle(
-        f"Ablation Experiment Results on Overall {title_metric} across Four Datasets.",
-        y=0.98,
-    )
+    fig.suptitle(f"Ablation Experiment Results on Overall {title_metric} across Four Datasets.", )
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(
         handles,
@@ -99,12 +96,12 @@ def plot(metric: str = "accuracy") -> None:
         loc="upper center",
         ncol=len(CONFIG_LABELS),
         frameon=True,
-        bbox_to_anchor=(0.5, 0.9),
+        bbox_to_anchor=(0.5, 0.96),
     )
-    fig.tight_layout(rect=[0, 0, 1, 0.82])
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
 
     out_path = os.path.join(RES_DIR, f"ablation_{metric}.png")
-    savefig(fig, out_path, tight_layout=False)
+    savefig(fig, out_path, tight_layout=False, dpi=600)
 
 
 if __name__ == "__main__":  # pragma: no cover
@@ -112,7 +109,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument(
         "--metric",
         choices=["accuracy", "f1"],
-        default="accuracy",
+        default="f1",
         help="选择绘制的性能指标",
     )
     args = parser.parse_args()
