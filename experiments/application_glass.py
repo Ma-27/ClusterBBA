@@ -2,7 +2,7 @@
 """Glass 数据集上的证据融合分类实验
 =================================
 
-使用 :func:`utility.io_application.load_application_dataset` 读取``xu_bba_glass.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经 Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
+使用 :func:`utility.io_application.load_application_dataset` 读取``kfold_xu_bba_glass_resplit.csv``，对每个样本的多条 BBA 按指定融合规则组合，再经 Pignistic 转换得到预测类别，最终计算准确率和 F1 分数。
 原来研究使用的 cmd 参数，Glass 数据集很特殊，永远不启用 kfold ：--method Proposed --kfold
 """
 
@@ -38,6 +38,7 @@ from experiments.application_utils import (
     evaluate_accuracy as _evaluate_accuracy,
     load_kfold_params,
     kfold_evaluate,
+    print_evaluation_matrix,
 )
 
 # ---------------------------------------------------------------------------
@@ -77,7 +78,7 @@ def evaluate_accuracy(*, samples: List[tuple[int, List[BBA], str]] | None = None
     """计算在 Glass 数据集上的分类准确率."""
 
     if samples is None and csv_path is None:
-        csv_path = Path(__file__).resolve().parents[1] / "data" / "xu_bba_glass.csv"
+        csv_path = Path(__file__).resolve().parents[1] / "data" / "kfold_xu_bba_glass_resplit.csv"
     return _evaluate_accuracy(
         samples=samples,
         debug=debug,
@@ -121,7 +122,7 @@ if __name__ == "__main__":
     debug = args.debug
 
     data_dir = Path(__file__).resolve().parents[1] / "data"
-    csv_path = data_dir / ("kfold_xu_bba_glass.csv" if args.kfold else "xu_bba_glass.csv")
+    csv_path = data_dir / ("kfold_xu_bba_glass_resplit.csv" if args.kfold else "xu_bba_glass.csv")
 
     if args.method == "Proposed" and args.kfold:
         # ------------------------------ K 折评估 ------------------------------ #
@@ -137,10 +138,14 @@ if __name__ == "__main__":
         # 载入数据集
         samples_cv = load_application_dataset_cv(debug=debug, csv_path=csv_path)
         # 进行分类任务评估
-        kfold_evaluate(samples_cv, param_map, LABEL_MAP, METHODS["Proposed"])
+        y_true, y_pred, y_score = kfold_evaluate(samples_cv, param_map, LABEL_MAP, METHODS["Proposed"])
     else:
         # ---------------------------- 单次评估流程 ---------------------------- #
         combine_func = METHODS[args.method]
         samples = load_application_dataset(debug=debug, csv_path=csv_path)
         # 进行分类任务评估
-        run_classification(samples, combine_func, LABEL_MAP, args.method)
+        y_true, y_pred, y_score = run_classification(samples, combine_func, LABEL_MAP, args.method)
+
+    # 在前述常规评估后，额外输出 TP、TN、Precision 等更细致的指标矩阵
+    print("\nAdditional Evaluation Metrics:")
+    print_evaluation_matrix(y_true, y_pred, args.method, y_score=y_score, label_map=LABEL_MAP)

@@ -37,7 +37,8 @@ def highlight_overlapping_lines(ax: plt.Axes, *, tol: float = 1e-8, extra_width:
                 lines[j].set_linewidth(new_width)
 
 
-def savefig(fig_or_path: str | plt.Figure, path: str | None = None, *, show: bool = True, **savefig_kwargs, ) -> None:
+def savefig(fig_or_path: str | plt.Figure, path: str | None = None, *, show: bool = True, tight_layout: bool = True,
+            **savefig_kwargs, ) -> None:
     """统一保存图像，可选是否显示"""
     if isinstance(fig_or_path, plt.Figure):
         fig = fig_or_path
@@ -46,18 +47,19 @@ def savefig(fig_or_path: str | plt.Figure, path: str | None = None, *, show: boo
         fig = plt.gcf()
         out = fig_or_path
     # 某些情况下三维坐标轴无法很好地应用 tight_layout，因此这里忽略相关警告以避免屏幕输出过多提示。
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=".*Tight layout not applied.*",
-            category=UserWarning,
-        )
-        warnings.filterwarnings(
-            "ignore",
-            message=".*figure layout has changed.*",
-            category=UserWarning,
-        )
-        fig.tight_layout()
+    if tight_layout:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=".*Tight layout not applied.*",
+                category=UserWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=".*figure layout has changed.*",
+                category=UserWarning,
+            )
+            fig.tight_layout()
     if out is not None:
         fig.savefig(out, **savefig_kwargs)
     else:

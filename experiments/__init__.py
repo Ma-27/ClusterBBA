@@ -16,6 +16,7 @@ __all__ = [
     "tune_hyperparams_seeds",
     "tune_hyperparams_glass",
     "tune_hyperparams_a_kfold",
-    "tune_hyperparams_bayes.py",
+    "tune_hyperparams_bayes",
     "application_utils",
+    "paired_t_test",
 ]

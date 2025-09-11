@@ -29,6 +29,7 @@ if str(BASE_DIR) not in sys.path:
 # 依赖本项目内现成工具函数 / 模块
 from data.bba_generation.kfold_xu_glass import (
     CSV_PATH as KFOLD_CSV_PATH,
+    CSV_RESPLIT_PATH,  # 重新划分后的 kfold CSV 路径
     load_glass_data,
 )
 from data.bba_generation.xu_glass import (
@@ -43,13 +44,14 @@ def _print_md_sample(df: pd.DataFrame, n: int = 5) -> None:
     print(df.head(n).to_markdown(index=False))
 
 
-def test_index_mapping() -> None:
-    """检查 ``kfold`` CSV 的 ``sample_index`` 映射。"""
+def _test_index_mapping_for(csv_path: Path, csv_name: str) -> None:
+    """通用的 ``sample_index`` 映射检查函数。"""
 
-    print("开始测试 sample_index 映射……")
-    if not KFOLD_CSV_PATH.exists():
+    # 便于调试与复用的中文提示
+    print(f"开始测试 {csv_name} 的 sample_index 映射……")
+    if not csv_path.exists():
         subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_glass"], check=True)
-    df = pd.read_csv(KFOLD_CSV_PATH)
+    df = pd.read_csv(csv_path)
     # 有些环境可能将 ``sample_index`` 解析为浮点数，这里统一转为 ``int``
     df["sample_index"] = df["sample_index"].astype(int)
     X_all, _, attr_names, _, _ = load_glass_data()
@@ -75,6 +77,18 @@ def test_index_mapping() -> None:
         print("sample_index 映射检查通过")
     else:
         raise AssertionError("sample_index 映射检查未通过")
+
+
+def test_index_mapping() -> None:
+    """保留原始 ``kfold`` CSV 的检查入口。"""
+
+    _test_index_mapping_for(KFOLD_CSV_PATH, "kfold CSV")
+
+
+def test_index_mapping_resplit() -> None:
+    """新增 ``kfold_resplit`` CSV 的检查入口。"""
+
+    _test_index_mapping_for(CSV_RESPLIT_PATH, "kfold_resplit CSV")
 
 
 def _load_dataset() -> pd.DataFrame:
@@ -177,7 +191,7 @@ def _check_bba_values(df: pd.DataFrame, csv_name: str) -> list[str]:
 
 
 def _check_kfold_alignment(
-        df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str]
+        df: pd.DataFrame, dataset_df: pd.DataFrame, attr_names: list[str], csv_name: str
 ) -> list[str]:
     """检查 ``kfold`` 版本是否与原始数据按索引完全对应。"""
 
@@ -185,14 +199,14 @@ def _check_kfold_alignment(
     features = _parse_bba(df, attr_names)
     for idx, row in dataset_df.iterrows():
         if idx not in features:
-            errors.append(f"kfold CSV: 缺失索引 {idx}")
+            errors.append(f"{csv_name}: 缺失索引 {idx}")
             print("缺失索引示例:")
             _print_md_sample(dataset_df.loc[[idx]])
             continue
         vals = np.array(features[idx], dtype=float)
         expect = row[attr_names].to_numpy(dtype=float)
         if not np.allclose(vals, expect, atol=1e-6):
-            errors.append(f"kfold CSV: 索引 {idx} 的特征不匹配")
+            errors.append(f"{csv_name}: 索引 {idx} 的特征不匹配")
             print("CSV 示例:")
             _print_md_sample(df[df["sample_index"] == idx])
             print("dataset 示例:")
@@ -200,7 +214,7 @@ def _check_kfold_alignment(
         gt = df[df["sample_index"] == idx]["ground_truth"].iloc[0]
         if gt != row["ground_truth"]:
             errors.append(
-                f"kfold CSV: 索引 {idx} 的 ground_truth 错误 {gt} != {row['ground_truth']}"
+                f"{csv_name}: 索引 {idx} 的 ground_truth 错误 {gt} != {row['ground_truth']}"
             )
             print("CSV ground_truth 示例:")
             _print_md_sample(df[df["sample_index"] == idx])
@@ -258,17 +272,21 @@ def _check_basic_alignment(
     return errors
 
 
-def test_data_consistency() -> None:
-    """检查两份 CSV 是否与原始数据一致且无重复。"""
+def _test_data_consistency_for(kfold_csv_path: Path, csv_name: str) -> None:
+    """通用的数据一致性检查函数。"""
 
     print("开始测试 CSV 与原始数据的一致性……")
     if not BASIC_CSV_PATH.exists():
         subprocess.run(["python", "-m", "data.bba_generation.xu_glass"], check=True)
-    if not KFOLD_CSV_PATH.exists():
-        subprocess.run(["python", "-m", "data.bba_generation.kfold_xu_glass"], check=True)
+    if not kfold_csv_path.exists():
+        # 若检查对象为重新划分的 CSV, 需附加 --use_existing_csv 参数
+        cmd = ["python", "-m", "data.bba_generation.kfold_xu_glass"]
+        if kfold_csv_path == CSV_RESPLIT_PATH:
+            cmd.append("--use_existing_csv")
+        subprocess.run(cmd, check=True)
 
     df_basic = pd.read_csv(BASIC_CSV_PATH)
-    df_kfold = pd.read_csv(KFOLD_CSV_PATH)
+    df_kfold = pd.read_csv(kfold_csv_path)
     df_basic["sample_index"] = df_basic["sample_index"].astype(int)
     df_kfold["sample_index"] = df_kfold["sample_index"].astype(int)
 
@@ -287,13 +305,13 @@ def test_data_consistency() -> None:
         print(" - 普通 CSV 样本完整性检查通过")
     errors += errs
 
-    errs = _check_unique_and_complete(df_kfold, dataset_df, attr_names, "kfold CSV")
+    errs = _check_unique_and_complete(df_kfold, dataset_df, attr_names, csv_name)
     if errs:
-        print(" - kfold CSV 样本完整性检查失败")
+        print(f" - {csv_name} 样本完整性检查失败")
         for e in errs:
             print("   ", e)
     else:
-        print(" - kfold CSV 样本完整性检查通过")
+        print(f" - {csv_name} 样本完整性检查通过")
     errors += errs
 
     errs = _check_bba_values(df_basic, "普通 CSV")
@@ -317,32 +335,32 @@ def test_data_consistency() -> None:
         print(" - 普通 CSV 小数位检查通过")
     errors += errs
 
-    errs = _check_bba_values(df_kfold, "kfold CSV")
+    errs = _check_bba_values(df_kfold, csv_name)
     if errs:
-        print(" - kfold CSV BBA 值检查失败")
+        print(f" - {csv_name} BBA 值检查失败")
         for e in errs:
             print("   ", e)
     else:
-        print(" - kfold CSV BBA 值检查通过")
+        print(f" - {csv_name} BBA 值检查通过")
     errors += errs
 
-    errs = _check_decimal_places(KFOLD_CSV_PATH, decimal_cols)
+    errs = _check_decimal_places(kfold_csv_path, decimal_cols)
     if errs:
-        print(" - kfold CSV 小数位检查失败")
+        print(f" - {csv_name} 小数位检查失败")
         for e in errs:
             print("   ", e)
     else:
-        print(" - kfold CSV 小数位检查通过")
+        print(f" - {csv_name} 小数位检查通过")
     errors += errs
 
     # ---------- 与原数据对齐检查 ----------
-    errs = _check_kfold_alignment(df_kfold, dataset_df, attr_names)
+    errs = _check_kfold_alignment(df_kfold, dataset_df, attr_names, csv_name)
     if errs:
-        print(" - kfold CSV 对齐检查失败")
+        print(f" - {csv_name} 对齐检查失败")
         for e in errs:
             print("   ", e)
     else:
-        print(" - kfold CSV 对齐检查通过")
+        print(f" - {csv_name} 对齐检查通过")
     errors += errs
 
     errs = _check_basic_alignment(df_basic, dataset_df, attr_names)
@@ -371,7 +389,7 @@ def test_data_consistency() -> None:
     idx_kfold = find_index(df_kfold)
     print("The target vector index is:")
     print("basic csv index:", idx_basic)
-    print("kfold csv index:", idx_kfold)
+    print(f"{csv_name} index:", idx_kfold)
     dataset_idx = int(
         dataset_df.index[
             (dataset_df[attr_names] == pd.Series(target, index=attr_names)).all(axis=1)
@@ -388,6 +406,19 @@ def test_data_consistency() -> None:
         print("数据一致性检查通过")
 
 
+def test_data_consistency() -> None:
+    """保留原始 ``kfold`` CSV 的一致性检查。"""
+
+    _test_data_consistency_for(KFOLD_CSV_PATH, "kfold CSV")
+
+
+def test_data_consistency_resplit() -> None:
+    """新增 ``kfold_resplit`` CSV 的一致性检查。"""
+
+    _test_data_consistency_for(CSV_RESPLIT_PATH, "kfold_resplit CSV")
+
+
 if __name__ == "__main__":  # pragma: no cover
-    test_index_mapping()
-    test_data_consistency()
+    # 默认执行针对重新划分后 CSV 的检查
+    test_index_mapping_resplit()
+    test_data_consistency_resplit()

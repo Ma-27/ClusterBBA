@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import string
 import sys
@@ -37,8 +38,16 @@ DATASET_META: dict[str, dict[str, str]] = {
     "glass": {"title": "Glass"},
 }
 
+# 数据集与标题字母编号的映射关系
+DATASET_LABEL_IDX: dict[str, int] = {
+    "iris": 0,  # (a)
+    "wine": 1,  # (b)
+    "seeds": 2,  # (c)
+    "glass": 3,  # (d)
+}
 
-def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None) -> None:
+
+def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None, with_title: bool = False, ) -> None:
     """绘制单个数据集的 ``mu`` 与 ``lambda`` 曲线
 
     Parameters
@@ -48,7 +57,9 @@ def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None) 
     label_idx:
         字母编号，用于在标题中标记 ``(a)``, ``(b)`` 等。
     font_kwargs:
-        控制标题和坐标轴字体的大小与粗细，例如 ``{"fontsize": 14, "fontweight": "bold"}``。
+        控制标题字体的大小与粗细，例如 ``{"fontsize": 14, "fontweight": "bold"}``。
+    with_title:
+        是否在图中添加标题，默认不添加。
     """
 
     # 构造 csv 路径并检查文件是否存在
@@ -108,12 +119,10 @@ def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None) 
     ax.set_xlabel("times")
     ax.set_ylabel(r"$\log_{10}$ $(\mu,\lambda)$ Value")
     ax.set_xlim(x.min(), x.max())
-    # 仅对 (a) Iris 的标题加粗并加大字号，其余使用默认
+    # 标题统一采用加粗大字号样式
     _title_text = f"({string.ascii_lowercase[label_idx]}) {title}"
-    if dataset.lower() == "iris":
-        ax.set_title(_title_text, fontsize=14, fontweight="bold")
-    else:
-        ax.set_title(_title_text)
+    if with_title:
+        ax.set_title(_title_text, **(font_kwargs or {}))
 
     # 坐标刻度与权重均使用默认样式（由 apply_style 控制）
 
@@ -127,12 +136,17 @@ def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None) 
 
 
 if __name__ == "__main__":  # pragma: no cover
+    parser = argparse.ArgumentParser(description="Visualize Bayes parameter tuning results")
     # todo 默认绘制的数据集，绘制其他数据集的需要调整
-    datasets = sys.argv[1:] or ["iris"]
+    parser.add_argument("datasets", nargs="*", default=["iris"], help="datasets to plot")
+    # 是否为每个图添加标题
+    parser.add_argument("--title", action="store_true", help="add titles to each plot", )
+    args = parser.parse_args()
 
     # 统一的字体设置：字号变大并加粗
-    font_kwargs = {"fontsize": 14, "fontweight": "bold"}
+    font_kwargs = {"fontsize": 14, "fontweight": "bold"} if args.title else None
 
     # 批量绘制多个数据集的参数曲线
-    for idx, ds in enumerate(datasets):
-        plot_dataset(ds, idx, font_kwargs)
+    for ds in args.datasets:
+        label_idx = DATASET_LABEL_IDX.get(ds.lower(), 0)
+        plot_dataset(ds, label_idx, font_kwargs, with_title=args.title)
