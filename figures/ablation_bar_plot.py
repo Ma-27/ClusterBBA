@@ -87,8 +87,23 @@ def plot(metric: str = "accuracy") -> None:
     ax.set_ylabel("F1 Score" if metric == "f1" else "Accuracy")
     ax.set_ylim(0.0, 1.0)
 
+    # ---------- 先固定绘图区，再让标题与图例相对其居中 ----------
+    fig.tight_layout(rect=[0, 0, 1, 0.9778])  # 预留上方空间给标题和图例
+
+    # 获取绘图区的位置并计算中心
+    ax_pos = ax.get_position()  # Bbox(x0, y0, x1, y1)
+    center_x = ax_pos.x0 + ax_pos.width / 2  # 绘图区水平中心
+    legend_y = ax_pos.y1 + 0.02  # 图例纵坐标
+    title_y = legend_y + 0.04  # 标题纵坐标
+
     title_metric = "F1 Score" if metric == "f1" else "Accuracy"
-    fig.suptitle(f"Ablation Experiment Results on Overall {title_metric} across Four Datasets.", )
+    fig.suptitle(
+        f"Ablation Experiment Results on Overall {title_metric} across Four Datasets.",
+        x=center_x,
+        y=title_y,
+        ha="center",
+    )
+
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(
         handles,
@@ -96,9 +111,9 @@ def plot(metric: str = "accuracy") -> None:
         loc="upper center",
         ncol=len(CONFIG_LABELS),
         frameon=True,
-        bbox_to_anchor=(0.5, 0.96),
+        bbox_to_anchor=(center_x, legend_y),
     )
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.tight_layout(rect=[0, 0, 1, 0.99])
 
     out_path = os.path.join(RES_DIR, f"ablation_{metric}.png")
     savefig(fig, out_path, tight_layout=False, dpi=600)
@@ -109,7 +124,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument(
         "--metric",
         choices=["accuracy", "f1"],
-        default="f1",
+        default="accuracy",
         help="选择绘制的性能指标",
     )
     args = parser.parse_args()
