@@ -91,8 +91,8 @@ if __name__ == '__main__':
     ax.fill_between(i, y1, y2, where=y2 >= y1, color='darkmagenta', alpha=0.3)
     ax.set_xlabel('Value of $i$')
     ax.set_ylabel('Divergence measurement')
-    ax.legend(fontsize=8)
-    ax.set_title('(a) CRD 后 FBJS', fontsize=10)
+    ax.legend()
+    ax.set_title('(a) CRD 后 FBJS')
     ax.grid(True, linestyle='--', linewidth=0.5)
 
     # 子图 (b)
@@ -105,8 +105,8 @@ if __name__ == '__main__':
     ax.fill_between(i, y2, y3, color='darkmagenta', alpha=0.3)
     ax.set_xlabel('Value of $i$')
     ax.set_ylabel('Divergence measurement')
-    ax.legend(fontsize=8)
-    ax.set_title('(b) DCR 后 FBJS', fontsize=10)
+    ax.legend()
+    ax.set_title('(b) DCR 后 FBJS')
     ax.grid(True, linestyle='--', linewidth=0.5)
 
     # 子图 (c)
@@ -119,8 +119,8 @@ if __name__ == '__main__':
     ax.fill_between(i, y2, y3, color='darkmagenta', alpha=0.3)
     ax.set_xlabel('Value of $i$')
     ax.set_ylabel('Divergence measurement')
-    ax.legend(fontsize=8)
-    ax.set_title('(c) CRD 后 BJS', fontsize=10)
+    ax.legend()
+    ax.set_title('(c) CRD 后 BJS')
     ax.grid(True, linestyle='--', linewidth=0.5)
 
     # 子图 (d)
@@ -133,8 +133,8 @@ if __name__ == '__main__':
     ax.fill_between(i, y2, y3, color='salmon', alpha=0.3)
     ax.set_xlabel('Value of $i$')
     ax.set_ylabel('Divergence measurement')
-    ax.legend(fontsize=8)
-    ax.set_title('(d) DCR 后 BJS', fontsize=10)
+    ax.legend()
+    ax.set_title('(d) DCR 后 BJS')
     ax.grid(True, linestyle='--', linewidth=0.5)
 
     # 子图 (e)
@@ -147,8 +147,8 @@ if __name__ == '__main__':
     ax.fill_between(i, y2, y3, color='salmon', alpha=0.3)
     ax.set_xlabel('Value of $i$')
     ax.set_ylabel('Divergence measurement')
-    ax.legend(fontsize=8)
-    ax.set_title('(e) CRD 后 RB', fontsize=10)
+    ax.legend()
+    ax.set_title('(e) CRD 后 RB')
     ax.grid(True, linestyle='--', linewidth=0.5)
 
     # 子图 (f)
@@ -161,8 +161,8 @@ if __name__ == '__main__':
     ax.fill_between(i, y2, y3, color='salmon', alpha=0.3)
     ax.set_xlabel('Value of $i$')
     ax.set_ylabel('Divergence measurement')
-    ax.legend(fontsize=8)
-    ax.set_title('(f) DCR 后 RB', fontsize=10)
+    ax.legend()
+    ax.set_title('(f) DCR 后 RB')
     ax.grid(True, linestyle='--', linewidth=0.5)
 
     # 布局调整并显示

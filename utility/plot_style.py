@@ -54,9 +54,10 @@ def apply_style() -> None:
         # 字体设置
         'font.family': 'Times New Roman',
         'font.serif': ['Times New Roman'],
-        'font.size': 5,
+        'font.size': 8,
         'axes.titlesize': 8,
         'axes.labelsize': 8,
+        'figure.titlesize': 8,
         'xtick.labelsize': 8,
         'ytick.labelsize': 8,
         'legend.fontsize': 6,

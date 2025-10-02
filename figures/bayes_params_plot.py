@@ -47,7 +47,7 @@ DATASET_LABEL_IDX: dict[str, int] = {
 }
 
 
-def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None, with_title: bool = False, ) -> None:
+def plot_dataset(dataset: str, label_idx: int, with_title: bool = False) -> None:
     """绘制单个数据集的 ``mu`` 与 ``lambda`` 曲线
 
     Parameters
@@ -56,8 +56,6 @@ def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None, 
         数据集名称，对应 csv 文件前缀。
     label_idx:
         字母编号，用于在标题中标记 ``(a)``, ``(b)`` 等。
-    font_kwargs:
-        控制标题字体的大小与粗细，例如 ``{"fontsize": 14, "fontweight": "bold"}``。
     with_title:
         是否在图中添加标题，默认不添加。
     """
@@ -85,6 +83,18 @@ def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None, 
     # 主图宽度为高度的 2.5 倍
     fig, ax = plt.subplots(figsize=(9, 2.5), dpi=600)
 
+    # 0 为对称轴，完整展示 [-3, 3]
+    ax.set_ylim(-3, 3)
+    ax.axhline(0.0, color="#43AC95", linestyle="--", linewidth=1)
+    ax.set_yticks(range(-3, 4))
+
+    # 绘制网格线，但隐藏 y=0 对应的那一条
+    ax.yaxis.grid(True)
+    for tick_val, gridline in zip(ax.get_yticks(), ax.yaxis.get_gridlines()):
+        if tick_val == 0:
+            gridline.set_visible(False)
+            break
+
     # 采用 SCI 标准的鲜艳配色，点略大于线宽
     line_width = 1.0
     marker_size = 3.5
@@ -111,18 +121,12 @@ def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None, 
         label=r"$\log_{10}(\mu)$",
     )
 
-    # 0 为对称轴，完整展示 [-3, 3]
-    ax.set_ylim(-3, 3)
-    ax.axhline(0.0, color="#666666", linestyle="--", linewidth=1.2)
-    ax.set_yticks(range(-3, 4))
-
     ax.set_xlabel("times")
     ax.set_ylabel(r"$\log_{10}$ $(\mu,\lambda)$ Value")
     ax.set_xlim(x.min(), x.max())
-    # 标题统一采用加粗大字号样式
     _title_text = f"({string.ascii_lowercase[label_idx]}) {title}"
     if with_title:
-        ax.set_title(_title_text, **(font_kwargs or {}))
+        ax.set_title(_title_text)
 
     # 坐标刻度与权重均使用默认样式（由 apply_style 控制）
 
@@ -138,15 +142,12 @@ def plot_dataset(dataset: str, label_idx: int, font_kwargs: dict | None = None, 
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(description="Visualize Bayes parameter tuning results")
     # todo 默认绘制的数据集，绘制其他数据集的需要调整
-    parser.add_argument("datasets", nargs="*", default=["iris"], help="datasets to plot")
+    parser.add_argument("datasets", nargs="*", default=["iris", "wine", "seeds"], help="datasets to plot")
     # 是否为每个图添加标题
-    parser.add_argument("--title", action="store_true", help="add titles to each plot", )
+    parser.add_argument("--title", action="store_true", help="add titles to each plot")
     args = parser.parse_args()
-
-    # 统一的字体设置：字号变大并加粗
-    font_kwargs = {"fontsize": 14, "fontweight": "bold"} if args.title else None
 
     # 批量绘制多个数据集的参数曲线
     for ds in args.datasets:
         label_idx = DATASET_LABEL_IDX.get(ds.lower(), 0)
-        plot_dataset(ds, label_idx, font_kwargs, with_title=args.title)
+        plot_dataset(ds, label_idx, with_title=args.title)

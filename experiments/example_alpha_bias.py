@@ -2,8 +2,7 @@
 """专家超参 \alpha 实验
 ======================
 
-构造 "极端冲突" 的双簇, 观察不同 \alpha 下簇 ``Clus1``与 ``Clus2`` 的人均支持度之比 :math:`SupRate(n,\alpha)` 随克隆次数
-``n`` 的变化。
+构造 "极端冲突" 的双簇, 观察不同 \alpha 下簇 ``Clus1``与 ``Clus2`` 的人均支持度之比 :math:`SupRate(n,\alpha)` 随克隆次数 ``n`` 的变化。
 """
 
 from __future__ import annotations
@@ -127,7 +126,7 @@ def plot_curves(df: pd.DataFrame, alphas: List[float], out_path: str) -> None:
     ax.yaxis.set_minor_formatter(mtick.NullFormatter())
 
     leg = ax.legend(
-        ncol=1, fontsize=5, handlelength=1.2,
+        ncol=1, handlelength=1.2,
         columnspacing=0.5, frameon=True,
         loc="upper left", bbox_to_anchor=(1.02, 1.00)
     )
