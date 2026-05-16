@@ -1,127 +1,339 @@
-# A Cluster-Level Information Fusion Framework for D-S Evidence Theory with Its Applications in Pattern Classification
+# ClusterBBA: A Cluster-Level Information Fusion Framework for D-S Evidence Theory with Its Applications in Pattern Classification
 
-`ClusterBBA` 是一个用于多源信息融合的 Python 项目，它是论文 **"A Cluster-Level Information Fusion Framework for D-S
-Evidence Theory with its Applications in Pattern Classification"** 的源代码。该框架旨在解决经典 Dempster-Shafer (D-S)
-证据理论在处理高度冲突证据时可能产生的违反直觉问题。
+[![Paper](https://img.shields.io/badge/Paper-Mathematics%202025%2C%2013(19)%2C%203144-blue)](https://doi.org/10.3390/math13193144)
 
-传统方法通常进行成对的证据比较，而本框架将分析视角从 **BBA-to-BBA**提升到 **BBAs-to-BBAs**
-的整体视角，通过将相似证据分簇来更系统地管理和定位冲突，从而在不确定性推理中提供更可靠、更具可解释性的决策支持。
+[![DOI](https://img.shields.io/badge/DOI-10.3390%2Fmath13193144-blue)](https://doi.org/10.3390/math13193144)
 
-#### 理论背景与动机
+[![Python](https://img.shields.io/badge/Python-3.10%2B-green)](#installation)
 
-D-S证据理论为处理不确定信息提供了强大的数学工具，但在融合来自多个源的高度冲突证据时，其经典的组合规则（Dempster's Rule of
-Combination）可能会导致与直觉相悖的结论。问题的根源在于，简单的冲突加权或丢弃无法有效识别和处理由不可靠信源导致的群体性偏见。
+`ClusterBBA` is the reference implementation for the paper:
 
-当证据集内部存在共识群体和孤立的冲突证据时，传统的成对比较方法难以捕捉这种宏观结构。例如，在多传感器目标识别任务中，即使多数传感器一致指向目标A，一个或少数几个传感器给出的强冲突证据（如指向目标B）也可能严重污染最终的融合结果。
+> **Ma, M.; Fei, L.** A Cluster-Level Information Fusion Framework for D-S Evidence Theory with Its Applications in Pattern Classification. *Mathematics* **2025**, *13*(19), 3144. https://doi.org/10.3390/math13193144
 
-为此，`ClusterBBA` 提出了一种全新的**簇级分析范式**
-。其核心思想是：在融合之前，首先识别证据内部的“意见团体”，将观点相似的证据聚合为“簇”，而将观点相异的证据分离开。这样，原始证据间的冲突就转化为簇与簇之间的差异，从而可以在一个更高、更宏观的层面上进行分析和处理，使得冲突的来源和结构更加清晰，为后续的加权融合提供了更可靠的依据。
+Instead of assessing evidence only through pairwise BBA-to-BBA comparisons, the framework first organizes similar Basic Belief Assignments (BBAs) into clusters, models consensus and conflict at the group level, and then performs credibility-weighted evidence fusion.
 
-#### 核心方法论
+The central idea is simple: when multiple sources provide uncertain or conflicting evidence, the conflict is often not merely an isolated pairwise phenomenon. Similar BBAs may form a coherent evidence group, while unreliable or structurally different BBAs may form separate groups. By explicitly modeling these groups, the proposed framework makes evidential conflict more interpretable and improves the robustness of fusion-based pattern classification.
 
-本框架的实现分为两个核心阶段：**在线证据聚类**和**基于簇结构的加权融合**。
+## Key Features
 
-###### 1. 证据聚类与簇质心构建
+- **Cluster-level view of evidence conflict**: moves from pairwise evidence comparison to a BBAs-to-BBAs perspective.
 
-为了捕捉每个证据簇的代表性特征，我们引入了基于分形理论的**最大Deng熵分形 (`fractal/fractal_max_entropy.py`)**
-。该算子通过迭代过程，以最大化信息熵（即最不引入主观偏见）的方式揭示证据的内在层次结构。
+- **Maximum-Deng-entropy fractal centroid**: constructs cluster centroids using a maximum-entropy fractal operation over focal elements.
 
-每个簇的**质心**被定义为其内部所有成员证据经过分形变换后的算术平均值 (`cluster/one_cluster.py`)
-。簇质心的更新采用了一种高效的递归方式，大大降低了在线聚类过程中的计算复杂度。
+- **Cluster-cluster divergence**: implements a cluster-level divergence measure, denoted as $D_{CC}$ in the paper and historically named `RD_CCJS` in the code.
 
-###### 2. 簇间散度 $D_{CC}$
+- **Reward-driven online evidence assignment**: dynamically decides whether a new BBA should join an existing cluster or form a new cluster.
 
-为了量化不同证据簇之间的差异，我们设计了一种新颖的**簇间散度度量 $D_{CC}$ (`divergence/rd_ccjs.py`)**
-。与传统的散度度量不同，$D_{CC}$ 能够同时捕捉两个关键维度的差异：
+- **Cluster-aware credibility weighting**: computes BBA credibility from cluster size, intra-cluster coherence, and inter-cluster separation.
 
-- **置信强度**：簇质心在各个命题上的置信度分布差异。
-- **结构支持度**：簇内成员对不同命题支持的广泛程度（即一个命题是由簇内多数成员共同支持，还是仅由少数成员支持）。
+- **Pattern-classification experiments**: includes BBA generation, classical D-S fusion baselines, machine-learning baselines, Bayesian hyperparameter search, and evaluation scripts.
 
-$D_{CC}$ 满足非负性、对称性和三角不等式等伪度量性质，为衡量簇间分离度提供了坚实的数学基础。
+## Why Cluster-Level Fusion?
 
-###### 3. 动态证据分配
+Classical Dempster's Rule of Combination can produce counter-intuitive results under severe conflict. Many existing methods mitigate this by modifying the fusion rule or by reweighting BBAs before fusion. However, purely pairwise credibility estimation may miss the structure of the whole evidence set.
 
-当一个新的证据到来时，框架采用一种**基于奖励的贪婪分配规则 (`cluster/multi_clusters.py`)**
-来决定其归属。系统会评估将该证据分配给每一个现有簇或创建一个新簇的所有可能策略。
+`ClusterBBA` addresses this by separating two kinds of information:
 
-每种策略的“奖励”函数被设计为最大化**平均簇间分离度**（由 $D_{CC}$ 衡量）与最小化**平均簇内一致性**（由 Belief
-Jensen-Shannon 散度衡量）的比值。通过选择奖励最高的策略，系统能够动态地维护一个既能有效分离冲突观点，又能保持内部观点一致的簇结构。
+1. **Intra-cluster coherence**: whether BBAs inside the same cluster support similar propositions.
 
-###### 4. 两阶段信息融合
+2. **Inter-cluster divergence**: whether different clusters represent genuinely different belief structures.
 
-在所有证据完成聚类后，框架进入第二阶段的加权融合 (`cluster/cluster_weights_calculator.py`)。每个证据的最终可信度权重由三个因素共同决定：
+This makes the final decision less dependent on a single highly conflicting BBA and more sensitive to the global structure of evidential consensus.
 
-1. **所属簇的大小**：更大的簇通常代表更强的共识。
-2. **证据与所属簇的一致性**：证据与簇内其他成员的平均散度。
-3. **所属簇与其他簇的分离度**：该簇与其他所有簇的平均`D_CC`散度。
+## Method Overview
 
-此外，框架引入了**专家偏置系数 $\alpha$**，允许用户根据先验知识调整对大簇（共识）与小簇（少数派意见）的信任程度，从而在不同应用场景下实现更灵活的决策。
+The proposed framework consists of two main stages.
 
-#### 实验与验证
+#### Stage 1: Sequential Cluster Construction
 
-本框架在多个UCI基准数据集（如Iris, Wine, Seeds, Glass）上进行了模式分类任务的验证 (`experiments/`)。实验结果表明：
+Incoming BBAs are processed one by one. For each new BBA, the algorithm evaluates all candidate strategies: joining each existing cluster or creating a new cluster. The strategy with the highest reward is selected.
 
-- 与传统的D-S证据理论方法（如Dempster's Rule, Murphy's method, Deng's
-  method等）相比，本框架在分类准确率和F1分数上均表现出显著优势，尤其是在处理类别不平衡和特征高度冲突的复杂数据集（如Glass）时，鲁棒性更强。
-- 通过消融实验验证了框架中各个创新点（特别是 `D_CC` 度量和专家偏置系数 `α`）的有效性。
-- 框架中的关键超参数 `(μ, λ)` 对模型性能有重要影响，我们采用**贝叶斯优化 (`experiments/tune_hyperparams_bayes.py`)**
-  的方法进行高效、数据驱动的自动寻优，以适应不同数据集的内在特性。
+For a cluster $Clus_i$, its fractal order is determined by its size:
 
-#### 仓库结构
+$$
+h_i = n_i - 1.
+$$
 
+The cluster centroid is constructed from the maximum-Deng-entropy fractal BBAs:
+
+$$
+\begin{aligned}
+\widetilde{m}_{F_i}^{(h)}(A)
+&= \frac{1}{n_i}
+\sum_{j=1}^{n_i} m_{F_j}^{(h)}(A),
+\quad A \subseteq \Theta.
+\end{aligned}
+$$
+
+The cluster-cluster divergence is computed after aligning centroids to the same global fractal order. In the paper it is denoted by $D_{CC}$:
+
+$$
+\begin{aligned}
+D_{CC}(Clus_p, Clus_q)
+&= \sqrt{
+\sum_{A \subseteq \Theta}
+\left(
+\sqrt{w_p(A)\widehat{m}_{F_p}^{(H)}(A)}
+{}-
+\sqrt{w_q(A)\widehat{m}_{F_q}^{(H)}(A)}
+\right)^2
+}.
+\end{aligned}
+$$
+
+The reward for a candidate assignment strategy is:
+
+$$
+\begin{aligned}
+R_k
+&=
+\frac{
+\left(
+\frac{1}{P_k}
+\sum_{1 \leq i < j \leq K_k}
+D_{CC}(Clus_i, Clus_j)
+\right)^\mu
+}{
+\left(
+\frac{1}{K_k}
+\sum_{i=1}^{K_k}
+D_{intra}(Clus_i^+)
+\right)^\lambda
+}.
+\end{aligned}
+$$
+
+Here, $\mu$ controls the sensitivity to inter-cluster divergence, and $\lambda$ controls the sensitivity to intra-cluster divergence.
+
+#### Stage 2: Cluster-Aware Evidence Fusion
+
+After clustering, each BBA receives a credibility weight. For BBA $m_{i,j}$ in cluster $Clus_i$, the support degree is:
+
+$$
+\begin{aligned}
+Sup_{i,j}
+&= n_i^\alpha
+\exp\left(-d_{i,j}^{\lambda}\right)
+\exp\left(-D_i^{\mu}\right),
+\end{aligned}
+$$
+
+where $\alpha$ is an expert-bias coefficient that controls how strongly the algorithm trusts large clusters. The credibility weights are normalized and used to construct a weighted-average BBA:
+
+$$
+\begin{aligned}
+\bar{m}(A)
+&= \sum_i \sum_j Crd_{i,j} m_{i,j}(A).
+\end{aligned}
+$$
+
+The weighted-average BBA is then fused recursively using Dempster's rule, and the final decision is made through pignistic probability transformation.
+
+## Repository Structure
+
+```text
+ClusterBBA/
+├── baseline/               # DS-SVM and evidential deep learning baselines
+├── cluster/                # Cluster objects, online clustering, scale weights
+├── data/                   # BBA datasets, generated data, and BBA generation scripts
+├── divergence/             # BJS, Jousselme, RB, RD_CCJS / D_CC-related measures
+├── entropy/                # Deng entropy and information-volume utilities
+├── experiments/            # Classification, hyperparameter tuning, ablation, statistics
+├── experiments_result/     # Saved experimental outputs and tuned parameters
+├── figures/                # Figure-generation scripts
+├── fractal/                # Maximum-Deng-entropy fractal operator
+├── fusion/                 # Dempster, Murphy, Deng, Xiao, and proposed fusion rules
+├── mean/                   # Mean BBA and average divergence utilities
+├── utility/                # BBA data structure, I/O, probability transform, plotting
+├── config.py               # Global hyperparameters and numerical constants
+├── main.py                 # Placeholder script; use experiment scripts as entry points
+└── requirements.txt        # Python dependencies
 ```
-/
-├── baseline/               # 用于比较的其他基线方法（如 DS-SVM, Evidential Deep Learning）
-├── cluster/                # 实现簇的构建、更新和权重计算
-├── data/                   # 包含数据集（Iris, Wine, Seeds, Glass）和BBA生成脚本
-├── divergence/             # 实现各种散度度量（BJS, Jousselme, D_CC 等）
-├── entropy/                # 实现 Deng 熵和信息量计算
-├── experiments/            # 包含论文中的所有实验、应用和超参数调整脚本
-├── experiments_result/     # 存储实验生成的图表和结果数据
-├── figures/                # 用于生成论文图表的脚本
-├── fractal/                # 实现最大Deng熵分形算子
-├── fusion/                 # 实现不同的证据融合规则（D-S, Murphy, Deng等）
-├── mean/                   # 计算均值BBA和冲突系数
-├── utility/                # 提供数据读取、绘图样式和概率转换等辅助功能
-├── config.py               # 项目配置文件
-├── main.py                 # 主执行文件入口
-└── requirements.txt        # 项目依赖
+
+## Installation
+
+Clone the repository and install the dependencies:
+
+```bash
+git clone https://github.com/Ma-27/ClusterBBA.git
+cd ClusterBBA
+
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-#### 安装和使用
+Python 3.14 or newer is recommended because the code uses modern Python type-hint syntax. The proposed D-S evidence fusion pipeline does not require a GPU. PyTorch is included mainly for the machine-learning baseline implementations.
 
-1. 克隆本仓库：
+## Quick Start
 
-   ```
-   git clone [https://github.com/your-username/ClusterBBA.git](https://github.com/your-username/ClusterBBA.git)
-   cd ClusterBBA
-   ```
+#### 1. Run a lightweight test
 
-2. 创建并激活一个虚拟环境（推荐）：
-
-   ```
-   python -m venv venv
-   source venv/bin/activate  # on Windows use `venv\Scripts\activate`
-   ```
-
-3. 安装所需的依赖包：
-
-   ```
-   pip install -r requirements.txt
-   ```
-
-4. 代码采用了模块化结构。以 `test` 开头的脚本带有主函数，为测试脚本；其他脚本为功能脚本，脚本和脚本之间互为依赖。
-
-#### 贡献
-
-我们欢迎任何形式的贡献，包括 bug 修复、理论扩展或文档改进。请随时提交 Pull Request 或创建 Issue。
-
-#### DOI
-
-```
-https://doi.org/10.3390/math13193144
+```bash
+python experiments/application_iris.py --method Proposed --debug
 ```
 
-#### 许可证
+The `--debug` flag evaluates only a small number of samples and is useful for checking whether the environment is configured correctly.
 
-本项目采用 [MIT License](https://opensource.org/licenses/MIT) 授权。
+#### 2. Run the proposed method on benchmark datasets
+
+```bash
+python experiments/application_iris.py  --method Proposed --kfold
+python experiments/application_wine.py  --method Proposed --kfold
+python experiments/application_seeds.py --method Proposed --kfold
+python experiments/application_glass.py --method Proposed --kfold
+```
+
+The `--kfold` option uses fold-specific hyperparameters saved under `experiments_result/`, such as `bayes_best_params_kfold_iris.csv`. If the corresponding file is missing, run Bayesian optimization first.
+
+#### 3. Compare with classical D-S evidence-theory baselines
+
+```bash
+python experiments/application_iris.py --method Dempster
+python experiments/application_iris.py --method Murphy
+python experiments/application_iris.py --method Deng
+python experiments/application_iris.py --method "Xiao BJS"
+python experiments/application_iris.py --method "Xiao RB"
+```
+
+Available methods in the application scripts include:
+
+```text
+Dempster, Murphy, Deng, Xiao BJS, Xiao BJS Pure, Xiao RB, Proposed
+```
+
+#### 4. Tune hyperparameters with Bayesian optimization
+
+```bash
+python experiments/tune_hyperparams_bayes.py --dataset iris --kfold --trials 50
+```
+
+To jointly optimize $\alpha$ together with $(\lambda, \mu)$:
+
+```bash
+python experiments/tune_hyperparams_bayes.py --dataset iris --kfold --trials 50 --alpha
+```
+
+Supported dataset names include:
+
+```text
+iris, wine, seeds, glass
+```
+
+## Minimal Python API Example
+
+```python
+from utility.bba import BBA
+from fusion.my_rule import my_combine
+from utility.probability import pignistic, argmax
+
+frame = {"A", "B", "C"}
+
+m1 = BBA({
+  frozenset({"A"}): 0.50,
+  frozenset({"B"}): 0.20,
+  frozenset({"C"}): 0.30,
+}, frame=frame, name="m1")
+
+m2 = BBA({
+  frozenset({"A"}): 0.90,
+  frozenset({"B"}): 0.10,
+}, frame=frame, name="m2")
+
+m3 = BBA({
+  frozenset({"A"}): 0.55,
+  frozenset({"B"}): 0.10,
+  frozenset({"A", "C"}): 0.35,
+}, frame=frame, name="m3")
+
+fused = my_combine([m1, m2, m3], lambda_val=1.0, mu_val=1.0)
+prob = pignistic(fused)
+decision, confidence = argmax(prob)
+
+print("Fused BBA:", fused.to_formatted_dict())
+print("Decision:", decision, "Confidence:", confidence)
+```
+
+To inspect the intermediate cluster structure:
+
+```python
+from cluster.multi_clusters import construct_clusters_by_sequence
+
+mc = construct_clusters_by_sequence([m1, m2, m3], debug=True)
+mc.print_all_info()
+```
+
+## Experimental Results Reported in the Paper
+
+The paper evaluates the proposed framework on four UCI benchmark datasets using nested five-fold cross-validation. The proposed method is compared with classical D-S evidence-theory methods and machine-learning-based baselines.
+
+| Dataset | Accuracy | Macro F1 | Notes                                                                                                     |
+|---------|---------:|---------:|-----------------------------------------------------------------------------------------------------------|
+| Iris    |   0.9667 |   0.9667 | Clear class separability; the framework benefits from minority-cluster information.                       |
+| Wine    |   0.9663 |   0.9669 | Higher feature dimensionality; hyperparameter tuning is important.                                        |
+| Seeds   |   0.9190 |   0.9195 | Moderately overlapping classes; cluster-level weighting remains effective.                                |
+| Glass   |   0.5280 |   0.5040 | Strong class imbalance and feature conflict; the proposed method is robust among classical D-S baselines. |
+
+For the Glass dataset, the paper additionally reports that the proposed method obtains precision 0.5328, recall 0.5603, MCC 0.3735, and AUC 0.8266 in the reported setting.
+
+## Main Implementation Map
+
+| Paper concept                                   | Implementation                          |
+|-------------------------------------------------|-----------------------------------------|
+| Basic Belief Assignment                         | `utility/bba.py`                        |
+| Pignistic probability transformation            | `utility/probability.py`                |
+| Maximum-Deng-entropy fractal operator           | `fractal/fractal_max_entropy.py`        |
+| Single cluster and fractal centroid             | `cluster/one_cluster.py`                |
+| Sequential reward-based clustering              | `cluster/multi_clusters.py`             |
+| Scale weights $w_p(A)$                          | `cluster/cluster_weights_calculator.py` |
+| Cluster-cluster divergence $D_{CC}$ / `RD_CCJS` | `divergence/rd_ccjs.py`                 |
+| Proposed cluster-based fusion rule              | `fusion/my_rule.py`                     |
+| Classical D-S fusion baselines                  | `fusion/`                               |
+| Dataset-level classification evaluation         | `experiments/application_*.py`          |
+| Bayesian optimization of $(\lambda, \mu)$       | `experiments/tune_hyperparams_bayes.py` |
+
+## Reproducibility Notes
+
+- The proposed method uses a greedy sequential evidence-assignment rule. Different insertion orders of BBAs may lead to different cluster structures.
+
+- Hyperparameters $(\mu, \lambda)$ are dataset-sensitive. The paper uses Bayesian optimization to select fold-specific values.
+
+- The expert-bias coefficient $\alpha$ controls the trust placed in large clusters. Smaller values can preserve minority-cluster information, while larger values emphasize majority consensus.
+
+- Several scripts save outputs to `experiments_result/`. Existing files in that directory may be reused by the application scripts.
+
+- `main.py` is only a placeholder. For reproduction, use the scripts in `experiments/`.
+
+## Data
+
+The experiments use BBA-form data derived from standard UCI benchmark datasets, including Iris, Wine, Seeds, and Glass. The BBA generation scripts are provided under `data/bba_generation/`, and the application scripts load the generated BBA CSV files from `data/`.
+
+## Citation
+
+If this repository helps your research, please cite the paper:
+
+```bibtex
+@article{ma2025clusterbba,
+  title = {A Cluster-Level Information Fusion Framework for D-S Evidence Theory with Its Applications in Pattern Classification},
+  author = {Ma, Minghao and Fei, Liguo},
+  journal = {Mathematics},
+  volume = {13},
+  number = {19},
+  pages = {3144},
+  year = {2025},
+  publisher = {MDPI}
+}
+```
+
+## License
+
+The paper is published as an open-access article under the Creative Commons Attribution 4.0 International (CC BY 4.0)
+license. The source code in this GitHub repository is released under the MIT License; see the repository-level `LICENSE`
+file for details.
+
+## Acknowledgement
+
+This repository accompanies the research article above and is intended to support reproducibility, academic dissemination, and further research on uncertainty reasoning, D-S evidence theory, and interpretable information fusion.
+
